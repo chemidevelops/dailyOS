@@ -472,6 +472,7 @@ const styles = StyleSheet.create({
   },
 
   stepContent: {
+    paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl * 2,
   },
 
