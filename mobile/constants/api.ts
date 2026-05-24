@@ -156,6 +156,12 @@ export const api = {
       request<ApiSettings>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
   },
   generate: {
-    plan: (date?: string) => request<ApiGeneratedPlan>(date ? `/generate?date=${date}` : '/generate'),
+    plan: (date?: string) => {
+      const now = new Date()
+      const localTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+      const params = new URLSearchParams({ now: localTime })
+      if (date) params.set('date', date)
+      return request<ApiGeneratedPlan>(`/generate?${params}`)
+    },
   },
 }

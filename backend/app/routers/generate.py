@@ -54,7 +54,7 @@ class GeneratedPlan(BaseModel):
 
 
 @router.get("", response_model=GeneratedPlan)
-async def generate_plan(db: DB, date: str | None = None):
+async def generate_plan(db: DB, date: str | None = None, now: str | None = None):
     today     = dt.date.fromisoformat(date) if date else dt.date.today()
     today_iso = today.isoformat()
     weekday   = today.isoweekday()
@@ -73,9 +73,13 @@ async def generate_plan(db: DB, date: str | None = None):
     free_start = work_end_min if is_workday else _hhmm_to_minutes("09:00")
     free_end   = sleep_start_min
 
-    # For today, don't schedule things that have already passed
+    # For today, don't schedule things that have already passed (use client local time)
     if today == dt.date.today():
-        now_min    = dt.datetime.now().hour * 60 + dt.datetime.now().minute
+        if now:
+            h, m = map(int, now.split(":"))
+            now_min = h * 60 + m
+        else:
+            now_min = dt.datetime.now().hour * 60 + dt.datetime.now().minute
         free_start = max(free_start, now_min)
 
     free_minutes = max(0, free_end - free_start)
