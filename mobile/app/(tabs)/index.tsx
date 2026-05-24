@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -150,6 +150,7 @@ function EmptyDayState() {
 }
 
 export default function TodayScreen() {
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const [checkInDone, setCheckInDone] = useState(false)
   const [habits,  setHabits]  = useState<ApiHabit[]>([])
@@ -211,7 +212,7 @@ export default function TodayScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
 
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16 }]}>
           <View>
             <Text variant="displayLarge" color="primary">{dayLabel}</Text>
             <Text variant="body" color="secondary">{dateLabel}</Text>
@@ -283,7 +284,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl + 8,
     paddingBottom: Spacing.lg,
   },
   greetingTag: {

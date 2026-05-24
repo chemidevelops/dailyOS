@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { Text, Card, HStack, VStack } from '@/components/ui'
 import { Colors, Spacing, Radius } from '@/constants/tokens'
@@ -84,6 +84,7 @@ function EmptyPlan() {
 }
 
 export default function PlanScreen() {
+  const insets = useSafeAreaInsets()
   const [plan,    setPlan]    = useState<ApiGeneratedPlan | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
@@ -109,7 +110,7 @@ export default function PlanScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
 
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16 }]}>
           <Text variant="displayLarge" color="primary">Plan</Text>
           <Text variant="body" color="secondary">{today}</Text>
         </View>
@@ -160,7 +161,6 @@ const styles = StyleSheet.create({
 
   header: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl + 8,
     paddingBottom: Spacing.lg,
   },
   section:      { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },

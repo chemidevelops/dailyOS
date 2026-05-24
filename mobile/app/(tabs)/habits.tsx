@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { Text, Card, HStack, VStack, Divider } from '@/components/ui'
 import { Colors, Spacing, Radius, FontWeight } from '@/constants/tokens'
@@ -137,6 +137,7 @@ function EmptyState() {
 }
 
 export default function HabitsScreen() {
+  const insets = useSafeAreaInsets()
   const [habits,  setHabits]  = useState<ApiHabit[]>([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
@@ -196,7 +197,7 @@ export default function HabitsScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
 
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16 }]}>
           <Text variant="displayLarge" color="primary">Hábitos</Text>
           <Text variant="body" color="secondary">
             {new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -262,7 +263,6 @@ const styles = StyleSheet.create({
 
   header: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl + 8,
     paddingBottom: Spacing.lg,
   },
   section:      { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { Text, Card, PressableCard, HStack, VStack } from '@/components/ui'
 import { Colors, Spacing, Radius } from '@/constants/tokens'
@@ -132,6 +132,7 @@ function EmptyState() {
 }
 
 export default function LeisureScreen() {
+  const insets = useSafeAreaInsets()
   const [filter,  setFilter]  = useState<MediaType | 'all'>('all')
   const [media,   setMedia]   = useState<ApiLeisure[]>([])
   const [loading, setLoading] = useState(true)
@@ -160,7 +161,7 @@ export default function LeisureScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
 
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16 }]}>
           <Text variant="displayLarge" color="primary">Ocio</Text>
           <Text variant="body" color="secondary">Tu biblioteca personal</Text>
         </View>
@@ -241,7 +242,6 @@ const styles = StyleSheet.create({
 
   header: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl + 8,
     paddingBottom: Spacing.lg,
   },
   section:      { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },

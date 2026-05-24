@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { View, ScrollView, StyleSheet, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Text, Button, HStack, VStack, Card } from '@/components/ui'
 import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
@@ -389,7 +389,8 @@ type HabitDraftOut   = { title: string; color: string; duration: number; target:
 type LeisureDraftOut = { title: string; type: LeisureType; color: string; status: 'playing' | 'pending' }
 
 export default function OnboardingScreen() {
-  const router = useRouter()
+  const router  = useRouter()
+  const insets  = useSafeAreaInsets()
   const [step,         setStep]         = useState(1)
   const [scheduleData, setScheduleData] = useState<{ workStart: string; workEnd: string; sleepStart: string } | null>(null)
   const [habitsData,   setHabitsData]   = useState<HabitDraftOut[]>([])
@@ -446,7 +447,7 @@ export default function OnboardingScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + Spacing.lg }]}>
           <Text variant="displayLarge" color="primary" style={{ marginBottom: Spacing.lg }}>DailyOS</Text>
           <ProgressBar step={step} total={3} />
         </View>
@@ -463,7 +464,6 @@ const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: Colors.bg },
   header: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: 56,
     paddingBottom: Spacing.md,
   },
 
