@@ -264,7 +264,7 @@ function StepHabits({ onNext, onBack }: { onNext: (habits: HabitDraft[]) => void
 // ─── Step 3: Ocio ─────────────────────────────────────────────────────────────
 
 type LeisureType = 'game' | 'anime' | 'book' | 'series'
-type LeisureDraft = { title: string; type: LeisureType; color: string; status: 'playing' | 'pending'; habitIndex: number | null }
+type LeisureDraft = { title: string; type: LeisureType; status: 'playing' | 'pending'; habitIndex: number | null }
 
 const LEISURE_TYPES: { key: LeisureType; label: string }[] = [
   { key: 'game',   label: 'Juego' },
@@ -272,14 +272,13 @@ const LEISURE_TYPES: { key: LeisureType; label: string }[] = [
   { key: 'book',   label: 'Libro' },
   { key: 'series', label: 'Serie' },
 ]
-const LEISURE_COLORS = ['#FF4D30', '#3D5AFE', '#FF7700', '#8B2FC9', '#00C896', '#FFD600']
-
 function LeisureDraftCard({ item, habits, onRemove }: { item: LeisureDraft; habits: HabitDraft[]; onRemove: () => void }) {
   const typeLabel  = LEISURE_TYPES.find(t => t.key === item.type)!.label
   const habitLabel = item.habitIndex !== null ? habits[item.habitIndex]?.title : null
+  const habitColor = item.habitIndex !== null ? habits[item.habitIndex]?.color : Colors.border
   return (
     <HStack style={styles.draftCard} gap="md">
-      <View style={[styles.draftColor, { backgroundColor: item.color }]} />
+      <View style={[styles.draftColor, { backgroundColor: habitColor }]} />
       <VStack gap="xs" style={{ flex: 1 }}>
         <Text variant="bodyMedium" color="primary">{item.title}</Text>
         <Text variant="micro" color="tertiary">
@@ -303,13 +302,12 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
   const [items,      setItems]      = useState<LeisureDraft[]>([])
   const [title,      setTitle]      = useState('')
   const [type,       setType]       = useState<LeisureType>('game')
-  const [color,      setColor]      = useState(LEISURE_COLORS[0])
   const [status,     setStatus]     = useState<'playing'|'pending'>('pending')
   const [habitIndex, setHabitIndex] = useState<number | null>(null)
 
   const addItem = () => {
     if (!title.trim()) return
-    setItems(prev => [...prev, { title: title.trim(), type, color, status, habitIndex }])
+    setItems(prev => [...prev, { title: title.trim(), type, status, habitIndex }])
     setTitle('')
     setHabitIndex(null)
   }
@@ -383,15 +381,6 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
           </>
         )}
 
-        <Text variant="micro" color="secondary" style={[styles.label, { marginTop: Spacing.md }]}>COLOR</Text>
-        <HStack gap="sm">
-          {LEISURE_COLORS.map(c => (
-            <Pressable key={c} onPress={() => setColor(c)} style={[styles.colorDot, { backgroundColor: c }, color === c && styles.colorDotSelected]}>
-              {color === c && <Text variant="micro" color="inverse">✓</Text>}
-            </Pressable>
-          ))}
-        </HStack>
-
         <Button
           label="+ Añadir"
           variant="ghost"
@@ -420,7 +409,7 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
 // ─── Main onboarding screen ───────────────────────────────────────────────────
 
 type HabitDraftOut   = { title: string; color: string; duration: number; target: number }
-type LeisureDraftOut = { title: string; type: LeisureType; color: string; status: 'playing' | 'pending'; habitIndex: number | null }
+type LeisureDraftOut = { title: string; type: LeisureType; status: 'playing' | 'pending'; habitIndex: number | null }
 
 export default function OnboardingScreen() {
   const router  = useRouter()
