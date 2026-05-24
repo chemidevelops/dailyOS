@@ -447,7 +447,7 @@ export default function OnboardingScreen() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.header}>
-          <Text variant="displayLarge" color="primary">DailyOS</Text>
+          <Text variant="displayLarge" color="primary" style={{ marginBottom: Spacing.lg }}>DailyOS</Text>
           <ProgressBar step={step} total={3} />
         </View>
 
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: Colors.bg },
   header: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl,
+    paddingTop: 56,
     paddingBottom: Spacing.md,
   },
 
