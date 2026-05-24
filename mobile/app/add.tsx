@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, ScrollView, StyleSheet, Pressable, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Text, Button, HStack, VStack } from '@/components/ui'
 import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
-import { api } from '@/constants/api'
+import { api, ApiActivity } from '@/constants/api'
 
 type ItemType = 'activity' | 'task'
 
@@ -70,8 +70,14 @@ export default function AddScreen() {
   const [color,       setColor]       = useState(Colors.mint)
   const [targetPerWk, setTargetPerWk] = useState(5)
   const [priority,    setPriority]    = useState<'high'|'medium'|'low'>('medium')
+  const [activityId,  setActivityId]  = useState<number | null>(null)
+  const [activities,  setActivities]  = useState<ApiActivity[]>([])
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState<string | null>(null)
+
+  useEffect(() => {
+    api.activities.list().then(a => setActivities(a.filter(x => x.is_active))).catch(() => {})
+  }, [])
 
   const canSave = title.trim().length > 0 && !saving
 
@@ -88,11 +94,13 @@ export default function AddScreen() {
           duration_minutes: duration,
         })
       } else {
+        const linkedActivity = activities.find(a => a.id === activityId)
         await api.tasks.create({
           title: title.trim(),
-          color,
+          color: linkedActivity ? linkedActivity.color : color,
           priority,
           duration_minutes: duration,
+          activity_id: activityId,
         })
       }
       router.back()
@@ -201,10 +209,56 @@ export default function AddScreen() {
             </View>
           )}
 
-          <View style={styles.section}>
-            <SectionLabel label="COLOR" />
-            <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
-              {COLORS.map(c => (
+          {type === 'task' && activities.length > 0 && (
+            <View style={styles.section}>
+              <SectionLabel label="VINCULAR A ACTIVIDAD (OPCIONAL)" />
+              <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
+                <Pressable
+                  onPress={() => setActivityId(null)}
+                  style={[styles.chip, activityId === null && { backgroundColor: Colors.textPrimary, borderColor: Colors.textPrimary }]}
+                >
+                  <Text variant="captionMedium" customColor={activityId === null ? Colors.textInverse : Colors.textSecondary}>Ninguna</Text>
+                </Pressable>
+                {activities.map(a => (
+                  <Pressable
+                    key={a.id}
+                    onPress={() => setActivityId(a.id)}
+                    style={[styles.chip, activityId === a.id && { backgroundColor: a.color, borderColor: a.color }]}
+                  >
+                    <Text variant="captionMedium" customColor={activityId === a.id ? '#fff' : Colors.textSecondary}>{a.title}</Text>
+                  </Pressable>
+                ))}
+              </HStack>
+              {activityId !== null && (
+                <Text variant="micro" color="tertiary" style={{ marginTop: Spacing.xs }}>
+                  El color se heredará de la actividad seleccionada.
+                </Text>
+              )}
+            </View>
+          )}
+
+          {type === 'task' && activityId === null && (
+            <View style={styles.section}>
+              <SectionLabel label="COLOR" />
+              <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
+                {COLORS.map(c => (
+                  <Pressable
+                    key={c}
+                    onPress={() => setColor(c)}
+                    style={[styles.colorDot, { backgroundColor: c }, color === c && styles.colorDotSelected]}
+                  >
+                    {color === c && <Text variant="micro" color="inverse" style={{ fontWeight: FontWeight.bold }}>✓</Text>}
+                  </Pressable>
+                ))}
+              </HStack>
+            </View>
+          )}
+
+          {type === 'activity' && (
+            <View style={styles.section}>
+              <SectionLabel label="COLOR" />
+              <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
+                {COLORS.map(c => (
                 <Pressable
                   key={c}
                   onPress={() => setColor(c)}
@@ -221,6 +275,7 @@ export default function AddScreen() {
               ))}
             </HStack>
           </View>
+          )}
 
           {error && (
             <View style={styles.section}>

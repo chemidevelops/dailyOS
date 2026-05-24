@@ -1,12 +1,12 @@
-import { useState, useCallback } from 'react'
-import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
+import { useState, useCallback, useEffect } from 'react'
+import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, Modal } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Text, Card, PressableCard, Button, HStack, VStack, Divider } from '@/components/ui'
 import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
-import { api, ApiActivity, ApiTask, ApiSettings } from '@/constants/api'
+import { api, ApiActivity, ApiTask, ApiSettings, ApiGeneratedPlan } from '@/constants/api'
 
 function minutesUntilSleep(settings: ApiSettings | null): number {
   if (!settings) return 999
@@ -138,7 +138,92 @@ function AgendaRow({ item, onDone }: { item: TodayItem; onDone: () => void }) {
   )
 }
 
-function EmptyDayState() {
+// ─── Day guide modal ──────────────────────────────────────────────────────────
+
+const KIND_COLOR: Record<string, string> = { activity: Colors.mint, task: Colors.indigo }
+const KIND_LABEL: Record<string, string> = { activity: 'ACTIVIDAD', task: 'TAREA' }
+
+function DayGuideModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const [plan,    setPlan]    = useState<ApiGeneratedPlan | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!visible) return
+    setLoading(true)
+    api.generate.plan().then(setPlan).catch(() => {}).finally(() => setLoading(false))
+  }, [visible])
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bg }} edges={['top', 'bottom']}>
+        <HStack style={{ paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg, justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1.5, borderBottomColor: Colors.border }}>
+          <Text variant="displayMedium" color="primary">Tu día</Text>
+          <Pressable onPress={onClose}>
+            <Text variant="captionMedium" color="secondary">Cerrar</Text>
+          </Pressable>
+        </HStack>
+
+        {loading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={Colors.textPrimary} />
+          </View>
+        ) : !plan || plan.items.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl }}>
+            <Text variant="body" color="secondary" style={{ textAlign: 'center' }}>No hay nada planificado para hoy.</Text>
+          </View>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: Spacing.xl }}>
+            {plan.work_end && (
+              <View style={guideStyles.nowLine}>
+                <View style={guideStyles.nowDot} />
+                <Text variant="micro" color="secondary">Trabajo hasta las {plan.work_end}</Text>
+              </View>
+            )}
+            {plan.items.map((item, i) => (
+              <View key={`${item.kind}-${item.id}`} style={guideStyles.row}>
+                <View style={guideStyles.timeCol}>
+                  {item.start_time && (
+                    <>
+                      <Text variant="captionMedium" color="primary">{item.start_time}</Text>
+                      <Text variant="micro" color="tertiary">{item.end_time}</Text>
+                    </>
+                  )}
+                </View>
+                <View style={[guideStyles.stripe, { backgroundColor: item.color }]} />
+                <VStack gap="xs" style={{ flex: 1 }}>
+                  <View style={[guideStyles.badge, { borderColor: (KIND_COLOR[item.kind] ?? Colors.border) + '60' }]}>
+                    <Text variant="micro" customColor={KIND_COLOR[item.kind] ?? Colors.textTertiary}>{KIND_LABEL[item.kind] ?? item.kind.toUpperCase()}</Text>
+                  </View>
+                  <Text variant="bodyMedium" color="primary" numberOfLines={2}>{item.title}</Text>
+                  {item.activity_title && (
+                    <Text variant="micro" color="tertiary">vía {item.activity_title}</Text>
+                  )}
+                </VStack>
+                <Text variant="micro" color="tertiary">{item.duration_minutes}m</Text>
+              </View>
+            ))}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    </Modal>
+  )
+}
+
+const guideStyles = StyleSheet.create({
+  nowLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.lg },
+  nowDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.textTertiary },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.lg },
+  timeCol: { width: 52, alignItems: 'flex-start' },
+  stripe:  { width: 4, height: 44, borderRadius: 2 },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.xs + 2, paddingVertical: 2,
+    borderRadius: Radius.full, borderWidth: 1.5, marginBottom: 2,
+  },
+})
+
+function EmptyDayState({ freeMinutes }: { freeMinutes: number }) {
   const router = useRouter()
   return (
     <Card variant="highlighted" style={styles.emptyCard}>
@@ -147,9 +232,8 @@ function EmptyDayState() {
       </Text>
       <Text variant="body" color="secondary" style={{ marginBottom: Spacing.lg }}>
         {freeMinutes < 30
-        ? 'Ya es tarde. Disfruta el descanso.'
-        : 'Añade actividades o tareas para empezar a planificar tu día.'}
-
+          ? 'Ya es tarde. Disfruta el descanso.'
+          : 'Añade actividades o tareas para empezar a planificar tu día.'}
       </Text>
       <Button
         label="Añadir algo +"
@@ -164,12 +248,13 @@ function EmptyDayState() {
 export default function TodayScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const [checkInDone, setCheckInDone] = useState(false)
-  const [activities, setActivities] = useState<ApiActivity[]>([])
-  const [tasks,      setTasks]      = useState<ApiTask[]>([])
-  const [settings,   setSettings]   = useState<ApiSettings | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
+  const [checkInDone,  setCheckInDone]  = useState(false)
+  const [showDayGuide, setShowDayGuide] = useState(false)
+  const [activities,   setActivities]   = useState<ApiActivity[]>([])
+  const [tasks,        setTasks]        = useState<ApiTask[]>([])
+  const [settings,     setSettings]     = useState<ApiSettings | null>(null)
+  const [loading,      setLoading]      = useState(true)
+  const [doneIds,      setDoneIds]      = useState<Set<string>>(new Set())
 
   const now       = new Date()
   const dayName   = format(now, 'EEEE', { locale: es })
@@ -236,9 +321,9 @@ export default function TodayScreen() {
             <Text variant="body" color="secondary">{dateLabel}</Text>
           </View>
           <HStack gap="sm" style={{ alignItems: 'center' }}>
-            <View style={styles.greetingTag}>
-              <Text variant="micro" color="secondary">{greeting.toUpperCase()}</Text>
-            </View>
+            <Pressable onPress={() => setShowDayGuide(true)} style={styles.greetingTag}>
+              <Text variant="micro" color="secondary">VER DÍA</Text>
+            </Pressable>
             <Pressable onPress={() => router.push('/add')} style={styles.addBtn}>
               <Text variant="title" color="primary" style={{ lineHeight: 24 }}>+</Text>
             </Pressable>
@@ -257,7 +342,7 @@ export default function TodayScreen() {
           </View>
         ) : visibleItems.length === 0 ? (
           <View style={styles.section}>
-            <EmptyDayState />
+            <EmptyDayState freeMinutes={freeMinutes} />
           </View>
         ) : (
           <>
@@ -289,6 +374,8 @@ export default function TodayScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <DayGuideModal visible={showDayGuide} onClose={() => setShowDayGuide(false)} />
     </SafeAreaView>
   )
 }

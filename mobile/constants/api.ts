@@ -76,6 +76,7 @@ export type ApiTask = {
   priority: 'high' | 'medium' | 'low'
   duration_minutes: number
   status: 'pending' | 'done' | 'deferred'
+  activity_id: number | null
 }
 
 export type ApiTaskCreate = {
@@ -83,6 +84,7 @@ export type ApiTaskCreate = {
   color: string
   priority: string
   duration_minutes: number
+  activity_id?: number | null
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

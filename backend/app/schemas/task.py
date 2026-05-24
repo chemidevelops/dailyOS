@@ -11,6 +11,7 @@ class TaskBase(BaseModel):
     duration_minutes: int = Field(default=30, ge=1)
     priority: TaskPriority = TaskPriority.medium
     status: TaskStatus = TaskStatus.pending
+    activity_id: int | None = None
     due_date: date | None = None
     notes: str | None = None
 
@@ -25,6 +26,7 @@ class TaskUpdate(BaseModel):
     duration_minutes: int | None = Field(default=None, ge=1)
     priority: TaskPriority | None = None
     status: TaskStatus | None = None
+    activity_id: int | None = None
     due_date: date | None = None
     notes: str | None = None
 
