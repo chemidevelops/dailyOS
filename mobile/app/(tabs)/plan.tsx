@@ -166,19 +166,33 @@ export default function PlanScreen() {
               <CapacityBar plan={plan} />
             </View>
 
+            {plan.work_start && plan.work_end && (
+              <View style={styles.section}>
+                <Text variant="micro" color="secondary" style={styles.sectionLabel}>TRABAJO</Text>
+                <Card padding="none" variant="flat">
+                  <HStack style={styles.planRow} gap="md">
+                    <View style={styles.timeCol}>
+                      <Text variant="captionMedium" color="primary">{plan.work_start}</Text>
+                      <Text variant="micro" color="tertiary">{plan.work_end}</Text>
+                    </View>
+                    <View style={[styles.stripe, { backgroundColor: Colors.border }]} />
+                    <Text variant="bodyMedium" color="tertiary" style={{ flex: 1 }}>Trabajo</Text>
+                  </HStack>
+                </Card>
+              </View>
+            )}
+
             <View style={styles.section}>
-              <Text variant="micro" color="secondary" style={styles.sectionLabel}>AGENDA DE HOY</Text>
+              <Text variant="micro" color="secondary" style={styles.sectionLabel}>TIEMPO LIBRE</Text>
               <Card padding="none">
                 {plan.items.map((item, i) => (
                   <View key={`${item.kind}-${item.id}`}>
                     <PlanItem item={item} />
-                    {i < plan.items.length - 1 && (
-                      <View style={styles.divider} />
-                    )}
-                  </View>
-                ))}
-              </Card>
-            </View>
+                    {i < plan.items.length - 1 && <View style={styles.divider} />}
+                </View>
+              ))}
+            </Card>
+          </View>
           </>
         )}
 

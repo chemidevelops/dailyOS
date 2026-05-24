@@ -70,9 +70,15 @@ async def generate_plan(db: DB, date: str | None = None):
     # 00:00 as sleep_start means midnight = end of day
     if sleep_start_min == 0:
         sleep_start_min = 1440
-    free_start      = work_end_min if is_workday else _hhmm_to_minutes("09:00")
-    free_end        = sleep_start_min
-    free_minutes    = max(0, free_end - free_start)
+    free_start = work_end_min if is_workday else _hhmm_to_minutes("09:00")
+    free_end   = sleep_start_min
+
+    # For today, don't schedule things that have already passed
+    if today == dt.date.today():
+        now_min    = dt.datetime.now().hour * 60 + dt.datetime.now().minute
+        free_start = max(free_start, now_min)
+
+    free_minutes = max(0, free_end - free_start)
 
     # Pending activities today
     all_activities = await activity_crud.get_activities(db)
