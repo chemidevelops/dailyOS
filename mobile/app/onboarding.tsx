@@ -473,11 +473,11 @@ const styles = StyleSheet.create({
 
   stepContent: {
     paddingTop: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.xl * 2,
   },
 
   section: {
-    paddingHorizontal: Spacing.xl,
     marginBottom: Spacing.lg,
   },
 
