@@ -28,6 +28,7 @@ def _hhmm_to_minutes(hhmm: str) -> int:
 
 
 def _minutes_to_hhmm(minutes: int) -> str:
+    minutes = minutes % 1440
     return f"{minutes // 60:02d}:{minutes % 60:02d}"
 
 
@@ -66,6 +67,9 @@ async def generate_plan(db: DB, date: str | None = None):
 
     work_end_min    = _hhmm_to_minutes(settings.work_end)
     sleep_start_min = _hhmm_to_minutes(settings.sleep_start)
+    # 00:00 as sleep_start means midnight = end of day
+    if sleep_start_min == 0:
+        sleep_start_min = 1440
     free_start      = work_end_min if is_workday else _hhmm_to_minutes("09:00")
     free_end        = sleep_start_min
     free_minutes    = max(0, free_end - free_start)

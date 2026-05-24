@@ -60,7 +60,7 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
 
 const HOURS = ['06:00','07:00','07:30','08:00','08:30','09:00','09:30','10:00']
 const END_HOURS = ['16:00','16:30','17:00','17:30','18:00','18:30','19:00','20:00']
-const SLEEP_HOURS = ['21:00','22:00','22:30','23:00','23:30','00:00','01:00']
+const SLEEP_HOURS = ['21:00','22:00','22:30','23:00','23:30','00:00','01:00','02:00']
 
 function StepSchedule({ onNext }: { onNext: (workStart: string, workEnd: string, sleepStart: string) => void }) {
   const [workStart,  setWorkStart]  = useState('09:00')

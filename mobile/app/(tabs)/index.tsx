@@ -13,7 +13,8 @@ function minutesUntilSleep(settings: ApiSettings | null): number {
   const now = new Date()
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const [h, m] = settings.sleep_start.split(':').map(Number)
-  const sleepMin = h * 60 + m
+  let sleepMin = h * 60 + m
+  if (sleepMin === 0) sleepMin = 1440  // 00:00 = medianoche = fin de día
   return Math.max(0, sleepMin - nowMin)
 }
 
