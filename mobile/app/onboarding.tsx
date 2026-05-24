@@ -185,9 +185,9 @@ function StepHabits({ onNext, onBack }: { onNext: (habits: HabitDraft[]) => void
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.stepContent} keyboardShouldPersistTaps="handled">
-      <Text variant="displayLarge" color="primary" style={{ marginBottom: Spacing.xs }}>Tus hábitos</Text>
+      <Text variant="displayLarge" color="primary" style={{ marginBottom: Spacing.xs }}>Tus actividades</Text>
       <Text variant="body" color="secondary" style={{ marginBottom: Spacing.xl }}>
-        Añade los hábitos que quieres trabajar. Puedes añadir más después.
+        Añade las actividades que quieres trabajar. Puedes añadir más después.
       </Text>
 
       {habits.length > 0 && (
@@ -238,7 +238,7 @@ function StepHabits({ onNext, onBack }: { onNext: (habits: HabitDraft[]) => void
         </HStack>
 
         <Button
-          label="+ Añadir hábito"
+          label="+ Añadir actividad"
           variant="ghost"
           size="md"
           onPress={addHabit}
@@ -316,9 +316,9 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.stepContent} keyboardShouldPersistTaps="handled">
-      <Text variant="displayLarge" color="primary" style={{ marginBottom: Spacing.xs }}>Tu ocio</Text>
+      <Text variant="displayLarge" color="primary" style={{ marginBottom: Spacing.xs }}>Tu backlog</Text>
       <Text variant="body" color="secondary" style={{ marginBottom: Spacing.xl }}>
-        Juegos, anime, libros, series... lo que tienes en cola o estás disfrutando ahora.
+        Añade los items concretos que tienes en cola: juegos, libros, animes... puedes asociarlos a una actividad.
       </Text>
 
       {items.length > 0 && (
@@ -362,7 +362,7 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
 
         {habits.length > 0 && (
           <>
-            <Text variant="micro" color="secondary" style={[styles.label, { marginTop: Spacing.md }]}>PERTENECE AL HÁBITO</Text>
+            <Text variant="micro" color="secondary" style={[styles.label, { marginTop: Spacing.md }]}>PERTENECE A LA ACTIVIDAD</Text>
             <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
               <Pressable
                 onPress={() => setHabitIndex(null)}
@@ -452,29 +452,27 @@ export default function OnboardingScreen() {
           onboarding_done: true,
         })
       }
-      // Save habits — keep the saved IDs to link leisure items
-      const savedHabitIds: number[] = []
+      // Save activities — keep saved IDs to link items
+      const savedActivityIds: number[] = []
       for (const h of habitsData) {
-        const saved = await api.habits.create({
+        const saved = await api.activities.create({
           title: h.title,
           color: h.color,
           target_per_week: h.target,
           duration_minutes: h.duration,
-          category: 'productivity',
         })
-        savedHabitIds.push(saved.id)
+        savedActivityIds.push(saved.id)
       }
-      // Save leisure — link to habit if selected
+      // Save backlog items — link to activity if selected
       for (const l of leisureItems) {
-        const habitId = l.habitIndex !== null ? (savedHabitIds[l.habitIndex] ?? null) : null
-        await api.leisure.create({
-          title: l.title,
-          type: l.type,
-          color: l.color,
-          status: l.status,
-          progress: 0,
-          habit_id: habitId,
-        })
+        const activityId = l.habitIndex !== null ? (savedActivityIds[l.habitIndex] ?? null) : null
+        if (activityId !== null) {
+          await api.items.create(activityId, {
+            activity_id: activityId,
+            title: l.title,
+            status: l.status === 'playing' ? 'active' : 'pending',
+          })
+        }
       }
       router.replace('/(tabs)')
     } catch {

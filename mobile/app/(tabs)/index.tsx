@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Text, Card, PressableCard, Button, HStack, VStack, Divider } from '@/components/ui'
 import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
-import { api, ApiHabit, ApiTask } from '@/constants/api'
+import { api, ApiActivity, ApiTask } from '@/constants/api'
 
 type Energy = 'high' | 'normal' | 'low'
 type Mode   = 'focus' | 'normal' | 'rest'
@@ -62,16 +62,16 @@ function EnergyCheckIn({ onSubmit }: { onSubmit: (e: Energy, m: Mode) => void })
 }
 
 type TodayItem =
-  | { kind: 'habit'; habit: ApiHabit }
-  | { kind: 'task';  task: ApiTask }
+  | { kind: 'activity'; activity: ApiActivity }
+  | { kind: 'task';     task: ApiTask }
 
 function TodayCard({ item, onDone }: { item: TodayItem; onDone: () => void }) {
   const router = useRouter()
 
-  const title    = item.kind === 'habit' ? item.habit.title : item.task.title
-  const color    = item.kind === 'habit' ? item.habit.color : item.task.color
-  const minutes  = item.kind === 'habit' ? item.habit.duration_minutes : item.task.duration_minutes
-  const typeLabel = item.kind === 'habit' ? 'HÁBITO' : 'TAREA'
+  const title    = item.kind === 'activity' ? item.activity.title : item.task.title
+  const color    = item.kind === 'activity' ? item.activity.color : item.task.color
+  const minutes  = item.kind === 'activity' ? item.activity.duration_minutes : item.task.duration_minutes
+  const typeLabel = item.kind === 'activity' ? 'ACTIVIDAD' : 'TAREA'
 
   const handleStart = () => router.push({
     pathname: '/focus',
@@ -104,9 +104,9 @@ function TodayCard({ item, onDone }: { item: TodayItem; onDone: () => void }) {
 function AgendaRow({ item, onDone }: { item: TodayItem; onDone: () => void }) {
   const [done, setDone] = useState(false)
   const handle = () => { setDone(true); setTimeout(onDone, 300) }
-  const title  = item.kind === 'habit' ? item.habit.title : item.task.title
-  const color  = item.kind === 'habit' ? item.habit.color : item.task.color
-  const mins   = item.kind === 'habit' ? item.habit.duration_minutes : item.task.duration_minutes
+  const title  = item.kind === 'activity' ? item.activity.title : item.task.title
+  const color  = item.kind === 'activity' ? item.activity.color : item.task.color
+  const mins   = item.kind === 'activity' ? item.activity.duration_minutes : item.task.duration_minutes
 
   return (
     <HStack style={[styles.agendaRow, done && { opacity: 0.3 }]} gap="md">
@@ -137,7 +137,7 @@ function EmptyDayState() {
         Día en blanco
       </Text>
       <Text variant="body" color="secondary" style={{ marginBottom: Spacing.lg }}>
-        Añade hábitos, tareas u ocio para empezar a planificar tu día.
+        Añade actividades o tareas para empezar a planificar tu día.
       </Text>
       <Button
         label="Añadir algo +"
@@ -153,8 +153,8 @@ export default function TodayScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const [checkInDone, setCheckInDone] = useState(false)
-  const [habits,  setHabits]  = useState<ApiHabit[]>([])
-  const [tasks,   setTasks]   = useState<ApiTask[]>([])
+  const [activities, setActivities] = useState<ApiActivity[]>([])
+  const [tasks,      setTasks]      = useState<ApiTask[]>([])
   const [loading, setLoading] = useState(true)
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
 
@@ -167,8 +167,8 @@ export default function TodayScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [h, t] = await Promise.all([api.habits.list(), api.tasks.list()])
-      setHabits(h.filter(x => x.is_active))
+      const [a, t] = await Promise.all([api.activities.list(), api.tasks.list()])
+      setActivities(a.filter(x => x.is_active))
       setTasks(t.filter(x => x.status === 'pending'))
     } catch {
       // silent — empty state shown
@@ -179,27 +179,25 @@ export default function TodayScreen() {
 
   useFocusEffect(useCallback(() => { load() }, [load]))
 
-  // Pending habits for today
-  const pendingHabits = habits.filter(h => {
-    const log = h.logs.find(l => l.date === TODAY_ISO)
+  const pendingActivities = activities.filter(a => {
+    const log = a.logs.find(l => l.date === TODAY_ISO)
     return log?.status !== 'done'
   })
 
-  // Build today items list
   const allItems: TodayItem[] = [
-    ...pendingHabits.map(h => ({ kind: 'habit' as const, habit: h })),
+    ...pendingActivities.map(a => ({ kind: 'activity' as const, activity: a })),
     ...tasks.map(t => ({ kind: 'task' as const, task: t })),
   ]
   const visibleItems = allItems.filter(i => {
-    const key = i.kind === 'habit' ? `h-${i.habit.id}` : `t-${i.task.id}`
+    const key = i.kind === 'activity' ? `a-${i.activity.id}` : `t-${i.task.id}`
     return !doneIds.has(key)
   })
 
   const markDone = useCallback((item: TodayItem) => {
-    const key = item.kind === 'habit' ? `h-${item.habit.id}` : `t-${item.task.id}`
+    const key = item.kind === 'activity' ? `a-${item.activity.id}` : `t-${item.task.id}`
     setDoneIds(prev => new Set([...prev, key]))
-    if (item.kind === 'habit') {
-      api.habits.log(item.habit.id, TODAY_ISO, 'done').catch(() => {})
+    if (item.kind === 'activity') {
+      api.activities.log(item.activity.id, TODAY_ISO, 'done').catch(() => {})
     } else {
       api.tasks.update(item.task.id, { status: 'done' }).catch(() => {})
     }
@@ -255,7 +253,7 @@ export default function TodayScreen() {
                 <Text variant="micro" color="secondary" style={styles.sectionLabel}>MÁS TARDE</Text>
                 <Card padding="none">
                   {restItems.map((item, i) => {
-                    const key = item.kind === 'habit' ? `h-${item.habit.id}` : `t-${item.task.id}`
+                    const key = item.kind === 'activity' ? `a-${item.activity.id}` : `t-${item.task.id}`
                     return (
                       <View key={key}>
                         <AgendaRow item={item} onDone={() => markDone(item)} />

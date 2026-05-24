@@ -7,10 +7,10 @@ import { Colors, Spacing, Radius } from '@/constants/tokens'
 import { api, ApiGeneratedPlan, ApiGeneratedItem } from '@/constants/api'
 
 const KIND_LABEL: Record<string, string> = {
-  habit: 'HÁBITO', task: 'TAREA', leisure: 'OCIO',
+  activity: 'ACTIVIDAD', task: 'TAREA',
 }
 const KIND_COLOR: Record<string, string> = {
-  habit: Colors.mint, task: Colors.indigo, leisure: Colors.coral,
+  activity: Colors.mint, task: Colors.indigo,
 }
 
 function PlanItem({ item }: { item: ApiGeneratedItem }) {
@@ -34,8 +34,8 @@ function PlanItem({ item }: { item: ApiGeneratedItem }) {
           <Text variant="micro" customColor={KIND_COLOR[item.kind]}>{KIND_LABEL[item.kind]}</Text>
         </View>
         <Text variant="bodyMedium" color="primary" numberOfLines={2}>{item.title}</Text>
-        {item.habit_title && (
-          <Text variant="micro" color="tertiary">vía {item.habit_title}</Text>
+        {item.activity_title && (
+          <Text variant="micro" color="tertiary">vía {item.activity_title}</Text>
         )}
       </VStack>
 

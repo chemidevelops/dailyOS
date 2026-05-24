@@ -25,8 +25,7 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index"   options={{ title: 'HOY',     tabBarIcon: ({ focused }) => <TabDot focused={focused} color={Colors.yellow} /> }} />
       <Tabs.Screen name="plan"    options={{ title: 'PLAN',    tabBarIcon: ({ focused }) => <TabDot focused={focused} color={Colors.indigo} /> }} />
-      <Tabs.Screen name="habits"  options={{ title: 'HÁBITOS', tabBarIcon: ({ focused }) => <TabDot focused={focused} color={Colors.mint} /> }} />
-      <Tabs.Screen name="leisure" options={{ title: 'OCIO',    tabBarIcon: ({ focused }) => <TabDot focused={focused} color={Colors.coral} /> }} />
+      <Tabs.Screen name="activities" options={{ title: 'ACTIVIDADES', tabBarIcon: ({ focused }) => <TabDot focused={focused} color={Colors.mint} /> }} />
     </Tabs>
   )
 }

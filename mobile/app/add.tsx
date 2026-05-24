@@ -1,25 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { View, ScrollView, StyleSheet, Pressable, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Text, Button, HStack, VStack } from '@/components/ui'
 import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
-import { api, ApiHabit } from '@/constants/api'
+import { api } from '@/constants/api'
 
-type ItemType = 'habit' | 'task' | 'leisure'
-type LeisureType = 'game' | 'anime' | 'book' | 'series'
+type ItemType = 'activity' | 'task'
 
 const ITEM_TYPES: { key: ItemType; label: string; color: string }[] = [
-  { key: 'habit',   label: 'HÁBITO',  color: Colors.mint },
-  { key: 'task',    label: 'TAREA',   color: Colors.indigo },
-  { key: 'leisure', label: 'OCIO',    color: Colors.coral },
-]
-
-const LEISURE_TYPES: { key: LeisureType; label: string }[] = [
-  { key: 'game',   label: 'Juego' },
-  { key: 'anime',  label: 'Anime' },
-  { key: 'book',   label: 'Libro' },
-  { key: 'series', label: 'Serie' },
+  { key: 'activity', label: 'ACTIVIDAD', color: Colors.mint },
+  { key: 'task',     label: 'TAREA',     color: Colors.indigo },
 ]
 
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90]
@@ -73,21 +64,14 @@ function ChipRow<T extends string>({
 export default function AddScreen() {
   const router = useRouter()
 
-  const [type,        setType]        = useState<ItemType>('habit')
+  const [type,        setType]        = useState<ItemType>('activity')
   const [title,       setTitle]       = useState('')
   const [duration,    setDuration]    = useState(30)
   const [color,       setColor]       = useState(Colors.mint)
-  const [leisureType, setLeisureType] = useState<LeisureType>('game')
   const [targetPerWk, setTargetPerWk] = useState(5)
   const [priority,    setPriority]    = useState<'high'|'medium'|'low'>('medium')
-  const [habitId,     setHabitId]     = useState<number | null>(null)
-  const [habits,      setHabits]      = useState<ApiHabit[]>([])
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState<string | null>(null)
-
-  useEffect(() => {
-    api.habits.list().then(h => setHabits(h.filter(x => x.is_active))).catch(() => {})
-  }, [])
 
   const canSave = title.trim().length > 0 && !saving
 
@@ -96,29 +80,19 @@ export default function AddScreen() {
     setSaving(true)
     setError(null)
     try {
-      if (type === 'habit') {
-        await api.habits.create({
+      if (type === 'activity') {
+        await api.activities.create({
           title: title.trim(),
           color,
           target_per_week: targetPerWk,
           duration_minutes: duration,
-          category: 'productivity',
         })
-      } else if (type === 'task') {
+      } else {
         await api.tasks.create({
           title: title.trim(),
           color,
           priority,
           duration_minutes: duration,
-        })
-      } else {
-        await api.leisure.create({
-          title: title.trim(),
-          type: leisureType,
-          color,
-          status: 'pending',
-          progress: 0,
-          habit_id: habitId,
         })
       }
       router.back()
@@ -183,9 +157,8 @@ export default function AddScreen() {
                 value={title}
                 onChangeText={setTitle}
                 placeholder={
-                  type === 'habit'   ? 'Ej: Estudiar japonés' :
-                  type === 'task'    ? 'Ej: Preparar presentación' :
-                                       'Ej: Hollow Knight'
+                  type === 'activity' ? 'Ej: Ejercicio, Lectura...' :
+                                        'Ej: Preparar presentación'
                 }
                 placeholderTextColor={Colors.textTertiary}
                 autoFocus
@@ -193,31 +166,17 @@ export default function AddScreen() {
             </View>
           </View>
 
-          {type === 'leisure' && (
-            <View style={styles.section}>
-              <SectionLabel label="CATEGORÍA" />
-              <ChipRow
-                options={LEISURE_TYPES.map(l => l.key) as LeisureType[]}
-                value={leisureType}
-                onChange={setLeisureType}
-                getLabel={v => LEISURE_TYPES.find(l => l.key === v)!.label}
-              />
-            </View>
-          )}
+          <View style={styles.section}>
+            <SectionLabel label="DURACIÓN" />
+            <ChipRow
+              options={DURATIONS as unknown as string[]}
+              value={String(duration)}
+              onChange={v => setDuration(Number(v))}
+              getLabel={v => `${v}m`}
+            />
+          </View>
 
-          {type !== 'leisure' && (
-            <View style={styles.section}>
-              <SectionLabel label="DURACIÓN" />
-              <ChipRow
-                options={DURATIONS as unknown as string[]}
-                value={String(duration)}
-                onChange={v => setDuration(Number(v))}
-                getLabel={v => `${v}m`}
-              />
-            </View>
-          )}
-
-          {type === 'habit' && (
+          {type === 'activity' && (
             <View style={styles.section}>
               <SectionLabel label="DÍAS POR SEMANA" />
               <ChipRow
@@ -239,29 +198,6 @@ export default function AddScreen() {
                 getLabel={v => v === 'high' ? 'Alta' : v === 'medium' ? 'Media' : 'Baja'}
                 getColor={v => v === 'high' ? Colors.coral : v === 'medium' ? Colors.yellow : Colors.mint}
               />
-            </View>
-          )}
-
-          {type === 'leisure' && habits.length > 0 && (
-            <View style={styles.section}>
-              <SectionLabel label="PERTENECE AL HÁBITO" />
-              <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
-                <Pressable
-                  onPress={() => setHabitId(null)}
-                  style={[styles.chip, habitId === null && { backgroundColor: Colors.textPrimary, borderColor: Colors.textPrimary }]}
-                >
-                  <Text variant="captionMedium" customColor={habitId === null ? Colors.textInverse : Colors.textSecondary}>Ninguno</Text>
-                </Pressable>
-                {habits.map(h => (
-                  <Pressable
-                    key={h.id}
-                    onPress={() => setHabitId(h.id)}
-                    style={[styles.chip, habitId === h.id && { backgroundColor: h.color, borderColor: h.color }]}
-                  >
-                    <Text variant="captionMedium" customColor={habitId === h.id ? '#fff' : Colors.textSecondary}>{h.title}</Text>
-                  </Pressable>
-                ))}
-              </HStack>
             </View>
           )}
 
