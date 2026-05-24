@@ -151,7 +151,12 @@ function StepSchedule({ onNext }: { onNext: (workStart: string, workEnd: string,
 
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90, 120, 150, 180]
 const TARGETS   = [2, 3, 4, 5, 6, 7]
-const COLORS    = ['#3D5AFE', '#00C896', '#FF7700', '#FF4D30', '#8B2FC9', '#FFD600']
+const COLORS    = [
+  '#3D5AFE', '#00C896', '#FF4D30', '#FFD600',
+  '#8B2FC9', '#FF7700', '#00BCD4', '#E91E8C',
+  '#43A047', '#F4511E', '#1E88E5', '#6D4C41',
+  '#546E7A', '#FFB300', '#00897B', '#D81B60',
+]
 
 type HabitDraft = { title: string; color: string; duration: number; target: number }
 
@@ -263,17 +268,9 @@ function StepHabits({ onNext, onBack }: { onNext: (habits: HabitDraft[]) => void
 
 // ─── Step 3: Ocio ─────────────────────────────────────────────────────────────
 
-type LeisureType = 'game' | 'anime' | 'book' | 'series'
-type LeisureDraft = { title: string; type: LeisureType; status: 'playing' | 'pending'; habitIndex: number | null }
+type LeisureDraft = { title: string; status: 'playing' | 'pending'; habitIndex: number | null }
 
-const LEISURE_TYPES: { key: LeisureType; label: string }[] = [
-  { key: 'game',   label: 'Juego' },
-  { key: 'anime',  label: 'Anime' },
-  { key: 'book',   label: 'Libro' },
-  { key: 'series', label: 'Serie' },
-]
 function LeisureDraftCard({ item, habits, onRemove }: { item: LeisureDraft; habits: HabitDraft[]; onRemove: () => void }) {
-  const typeLabel  = LEISURE_TYPES.find(t => t.key === item.type)!.label
   const habitLabel = item.habitIndex !== null ? habits[item.habitIndex]?.title : null
   const habitColor = item.habitIndex !== null ? habits[item.habitIndex]?.color : Colors.border
   return (
@@ -282,7 +279,7 @@ function LeisureDraftCard({ item, habits, onRemove }: { item: LeisureDraft; habi
       <VStack gap="xs" style={{ flex: 1 }}>
         <Text variant="bodyMedium" color="primary">{item.title}</Text>
         <Text variant="micro" color="tertiary">
-          {typeLabel} · {item.status === 'playing' ? 'En curso' : 'Pendiente'}
+          {item.status === 'playing' ? 'En curso' : 'Pendiente'}
           {habitLabel ? ` · ${habitLabel}` : ''}
         </Text>
       </VStack>
@@ -301,13 +298,12 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
 }) {
   const [items,      setItems]      = useState<LeisureDraft[]>([])
   const [title,      setTitle]      = useState('')
-  const [type,       setType]       = useState<LeisureType>('game')
   const [status,     setStatus]     = useState<'playing'|'pending'>('pending')
   const [habitIndex, setHabitIndex] = useState<number | null>(null)
 
   const addItem = () => {
     if (!title.trim()) return
-    setItems(prev => [...prev, { title: title.trim(), type, status, habitIndex }])
+    setItems(prev => [...prev, { title: title.trim(), status, habitIndex }])
     setTitle('')
     setHabitIndex(null)
   }
@@ -328,15 +324,7 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
       )}
 
       <Card style={styles.section}>
-        <Text variant="micro" color="secondary" style={styles.label}>TIPO</Text>
-        <ChipRow
-          options={LEISURE_TYPES.map(t => t.key) as LeisureType[]}
-          value={type}
-          onChange={setType}
-          getLabel={v => LEISURE_TYPES.find(t => t.key === v)!.label}
-        />
-
-        <Text variant="micro" color="secondary" style={[styles.label, { marginTop: Spacing.md }]}>TÍTULO</Text>
+        <Text variant="micro" color="secondary" style={styles.label}>TÍTULO</Text>
         <View style={styles.inputWrap}>
           <TextInput
             style={styles.input}
@@ -409,7 +397,7 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
 // ─── Main onboarding screen ───────────────────────────────────────────────────
 
 type HabitDraftOut   = { title: string; color: string; duration: number; target: number }
-type LeisureDraftOut = { title: string; type: LeisureType; status: 'playing' | 'pending'; habitIndex: number | null }
+type LeisureDraftOut = { title: string; status: 'playing' | 'pending'; habitIndex: number | null }
 
 export default function OnboardingScreen() {
   const router  = useRouter()

@@ -16,8 +16,10 @@ const ITEM_TYPES: { key: ItemType; label: string; color: string }[] = [
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90]
 
 const COLORS = [
-  Colors.indigo, Colors.mint, Colors.coral, Colors.yellow,
-  '#8B2FC9', '#FF7700', '#3D5AFE', '#FF4D30',
+  '#3D5AFE', '#00C896', '#FF4D30', '#FFD600',
+  '#8B2FC9', '#FF7700', '#00BCD4', '#E91E8C',
+  '#43A047', '#F4511E', '#1E88E5', '#6D4C41',
+  '#546E7A', '#FFB300', '#00897B', '#D81B60',
 ]
 
 const HABIT_TARGETS = [2, 3, 4, 5, 6, 7]
