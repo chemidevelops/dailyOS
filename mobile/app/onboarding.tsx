@@ -149,7 +149,7 @@ function StepSchedule({ onNext }: { onNext: (workStart: string, workEnd: string,
 
 // ─── Step 2: Hábitos ─────────────────────────────────────────────────────────
 
-const DURATIONS = [10, 15, 20, 30, 45, 60]
+const DURATIONS = [10, 15, 20, 30, 45, 60, 90, 120, 150, 180]
 const TARGETS   = [2, 3, 4, 5, 6, 7]
 const COLORS    = ['#3D5AFE', '#00C896', '#FF7700', '#FF4D30', '#8B2FC9', '#FFD600']
 
