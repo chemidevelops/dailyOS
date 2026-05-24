@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, ScrollView, StyleSheet, Pressable, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Text, Button, HStack, VStack } from '@/components/ui'
 import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
-import { api } from '@/constants/api'
+import { api, ApiHabit } from '@/constants/api'
 
 type ItemType = 'habit' | 'task' | 'leisure'
 type LeisureType = 'game' | 'anime' | 'book' | 'series'
@@ -80,8 +80,14 @@ export default function AddScreen() {
   const [leisureType, setLeisureType] = useState<LeisureType>('game')
   const [targetPerWk, setTargetPerWk] = useState(5)
   const [priority,    setPriority]    = useState<'high'|'medium'|'low'>('medium')
+  const [habitId,     setHabitId]     = useState<number | null>(null)
+  const [habits,      setHabits]      = useState<ApiHabit[]>([])
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState<string | null>(null)
+
+  useEffect(() => {
+    api.habits.list().then(h => setHabits(h.filter(x => x.is_active))).catch(() => {})
+  }, [])
 
   const canSave = title.trim().length > 0 && !saving
 
@@ -112,6 +118,7 @@ export default function AddScreen() {
           color,
           status: 'pending',
           progress: 0,
+          habit_id: habitId,
         })
       }
       router.back()
@@ -232,6 +239,29 @@ export default function AddScreen() {
                 getLabel={v => v === 'high' ? 'Alta' : v === 'medium' ? 'Media' : 'Baja'}
                 getColor={v => v === 'high' ? Colors.coral : v === 'medium' ? Colors.yellow : Colors.mint}
               />
+            </View>
+          )}
+
+          {type === 'leisure' && habits.length > 0 && (
+            <View style={styles.section}>
+              <SectionLabel label="PERTENECE AL HÁBITO" />
+              <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
+                <Pressable
+                  onPress={() => setHabitId(null)}
+                  style={[styles.chip, habitId === null && { backgroundColor: Colors.textPrimary, borderColor: Colors.textPrimary }]}
+                >
+                  <Text variant="captionMedium" customColor={habitId === null ? Colors.textInverse : Colors.textSecondary}>Ninguno</Text>
+                </Pressable>
+                {habits.map(h => (
+                  <Pressable
+                    key={h.id}
+                    onPress={() => setHabitId(h.id)}
+                    style={[styles.chip, habitId === h.id && { backgroundColor: h.color, borderColor: h.color }]}
+                  >
+                    <Text variant="captionMedium" customColor={habitId === h.id ? '#fff' : Colors.textSecondary}>{h.title}</Text>
+                  </Pressable>
+                ))}
+              </HStack>
             </View>
           )}
 
