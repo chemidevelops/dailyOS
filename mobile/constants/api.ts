@@ -83,6 +83,40 @@ export type ApiTaskCreate = {
   duration_minutes: number
 }
 
+// ─── Settings types ──────────────────────────────────────────────────────────
+
+export type ApiSettings = {
+  id: number
+  work_start: string
+  work_end: string
+  work_days: string
+  sleep_start: string
+  sleep_end: string
+  onboarding_done: boolean
+}
+
+// ─── Plan types ───────────────────────────────────────────────────────────────
+
+export type ApiGeneratedItem = {
+  id: number
+  kind: 'habit' | 'task' | 'leisure'
+  title: string
+  color: string
+  duration_minutes: number
+  start_time: string | null
+  end_time: string | null
+  during_work: boolean
+}
+
+export type ApiGeneratedPlan = {
+  date: string
+  free_minutes: number
+  planned_minutes: number
+  work_start: string
+  work_end: string
+  items: ApiGeneratedItem[]
+}
+
 // ─── API functions ───────────────────────────────────────────────────────────
 
 export const api = {
@@ -103,5 +137,12 @@ export const api = {
     list: () => request<ApiTask[]>('/tasks'),
     create: (body: ApiTaskCreate) => request<ApiTask>('/tasks', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: number, body: { status?: string; title?: string }) => request<ApiTask>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  },
+  settings: {
+    get: () => request<ApiSettings>('/settings'),
+    update: (body: Partial<ApiSettings>) => request<ApiSettings>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
+  },
+  generate: {
+    plan: () => request<ApiGeneratedPlan>('/generate'),
   },
 }

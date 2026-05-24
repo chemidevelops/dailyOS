@@ -1,142 +1,109 @@
-import { useState } from 'react'
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native'
+import { useState, useCallback } from 'react'
+import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Text, Card, PressableCard, HStack, VStack, Divider } from '@/components/ui'
-import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
-import { MOCK_PLAN } from '@/constants/mockData'
+import { useFocusEffect } from 'expo-router'
+import { Text, Card, HStack, VStack } from '@/components/ui'
+import { Colors, Spacing, Radius } from '@/constants/tokens'
+import { api, ApiGeneratedPlan, ApiGeneratedItem } from '@/constants/api'
 
-type FilterType = 'all' | 'habit' | 'task' | 'leisure'
-type SortMode   = 'time' | 'type' | 'duration'
-
-const TYPE_COLORS: Record<string, string> = {
-  habit:   Colors.mint,
-  task:    Colors.indigo,
-  leisure: Colors.coral,
-  anime:   Colors.indigo,
+const KIND_LABEL: Record<string, string> = {
+  habit: 'HÁBITO', task: 'TAREA', leisure: 'OCIO',
+}
+const KIND_COLOR: Record<string, string> = {
+  habit: Colors.mint, task: Colors.indigo, leisure: Colors.coral,
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  habit: 'HÁBITO', task: 'TAREA', leisure: 'OCIO', anime: 'ANIME',
-}
-
-const FILTERS: { key: FilterType; label: string }[] = [
-  { key: 'all',     label: 'TODO' },
-  { key: 'habit',   label: 'HÁBITOS' },
-  { key: 'task',    label: 'TAREAS' },
-  { key: 'leisure', label: 'OCIO' },
-]
-
-// Extend mock with more backlog items
-const BACKLOG_EXTRA = [
-  { id: 'b1', itemType: 'task' as const,    title: 'Preparar presentación',  color: Colors.indigo, durationMinutes: 45, isDone: false, subtitle: 'Para el jueves' },
-  { id: 'b2', itemType: 'task' as const,    title: 'Responder emails',        color: Colors.indigo, durationMinutes: 20, isDone: false, subtitle: undefined },
-  { id: 'b3', itemType: 'leisure' as const, title: 'Hollow Knight',           color: Colors.purple, durationMinutes: 60, isDone: false, subtitle: 'Pendiente de empezar' },
-]
-
-function CapacityBar({ planned, total }: { planned: number; total: number }) {
-  const pct = Math.min((planned / total) * 100, 100)
-  const over = planned > total
+function PlanItem({ item }: { item: ApiGeneratedItem }) {
   return (
-    <Card variant="default" padding="md" style={{ marginBottom: Spacing.lg }}>
-      <HStack style={{ justifyContent: 'space-between', marginBottom: Spacing.sm }}>
-        <Text variant="captionMedium" color="primary">Capacidad del día</Text>
-        <Text variant="captionMedium" customColor={over ? Colors.coral : Colors.mint}>
-          {Math.floor(planned / 60)}h {planned % 60}m / {Math.floor(total / 60)}h {total % 60}m
-        </Text>
-      </HStack>
-      <View style={styles.trackOuter}>
-        <View style={[
-          styles.trackFill,
-          { width: `${pct}%`, backgroundColor: over ? Colors.coral : Colors.mint },
-        ]} />
+    <HStack style={styles.planRow} gap="md">
+      <View style={styles.timeCol}>
+        {item.start_time ? (
+          <>
+            <Text variant="captionMedium" color="primary">{item.start_time}</Text>
+            <Text variant="micro" color="tertiary">{item.end_time}</Text>
+          </>
+        ) : (
+          <Text variant="micro" color="tertiary">—</Text>
+        )}
       </View>
-      <Text variant="micro" color="tertiary" style={{ marginTop: Spacing.xs }}>
-        {over
-          ? `${planned - total} min sobre el límite`
-          : `${total - planned} min disponibles`}
-      </Text>
+
+      <View style={[styles.stripe, { backgroundColor: item.color }]} />
+
+      <VStack gap="xs" style={{ flex: 1 }}>
+        <View style={[styles.kindBadge, { backgroundColor: KIND_COLOR[item.kind] + '25', borderColor: KIND_COLOR[item.kind] }]}>
+          <Text variant="micro" customColor={KIND_COLOR[item.kind]}>{KIND_LABEL[item.kind]}</Text>
+        </View>
+        <Text variant="bodyMedium" color="primary" numberOfLines={2}>{item.title}</Text>
+      </VStack>
+
+      <Text variant="micro" color="tertiary">{item.duration_minutes}m</Text>
+    </HStack>
+  )
+}
+
+function CapacityBar({ plan }: { plan: ApiGeneratedPlan }) {
+  const pct   = plan.free_minutes > 0 ? Math.round((plan.planned_minutes / plan.free_minutes) * 100) : 0
+  const freeH = Math.floor(plan.free_minutes / 60)
+  const freeM = plan.free_minutes % 60
+  const planH = Math.floor(plan.planned_minutes / 60)
+  const planM = plan.planned_minutes % 60
+
+  return (
+    <Card variant="yellow" padding="md" style={{ marginBottom: Spacing.lg }}>
+      <HStack style={{ justifyContent: 'space-between', marginBottom: Spacing.md }}>
+        <VStack gap="xs">
+          <Text variant="displayMedium" color="primary">{planH}h {planM}m</Text>
+          <Text variant="micro" color="secondary">PLANIFICADO</Text>
+        </VStack>
+        <VStack gap="xs" style={{ alignItems: 'flex-end' }}>
+          <Text variant="displayMedium" color="primary">{freeH}h {freeM}m</Text>
+          <Text variant="micro" color="secondary">TIEMPO LIBRE</Text>
+        </VStack>
+      </HStack>
+      <View style={styles.barTrack}>
+        <View style={[styles.barFill, { width: `${Math.min(pct, 100)}%` }]} />
+      </View>
+      {plan.work_end && (
+        <Text variant="micro" color="secondary" style={{ marginTop: Spacing.sm }}>
+          Tu tiempo libre empieza a las {plan.work_end}
+        </Text>
+      )}
     </Card>
   )
 }
 
-function PlanItem({
-  item, index, onToggle,
-}: {
-  item: typeof MOCK_PLAN.plannedItems[0]
-  index: number
-  onToggle: (id: string) => void
-}) {
-  const color = TYPE_COLORS[item.itemType] ?? Colors.textTertiary
-  const label = TYPE_LABELS[item.itemType] ?? item.itemType.toUpperCase()
-
+function EmptyPlan() {
   return (
-    <PressableCard
-      variant="default"
-      padding="md"
-      style={[styles.planItem, item.isDone && { opacity: 0.4 }]}
-      onPress={() => {}}
-    >
-      <HStack gap="md" style={{ alignItems: 'flex-start' }}>
-        {/* Drag handle / index */}
-        <View style={styles.indexBox}>
-          <Text variant="micro" color="tertiary">{String(index + 1).padStart(2, '0')}</Text>
-        </View>
-
-        <VStack gap="xs" style={{ flex: 1 }}>
-          <HStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={[styles.typeBadge, { backgroundColor: color + '20', borderColor: color + '60' }]}>
-              <Text variant="micro" customColor={color}>{label}</Text>
-            </View>
-            {item.suggestedStart && (
-              <Text variant="micro" color="tertiary">{item.suggestedStart}</Text>
-            )}
-          </HStack>
-
-          <Text
-            variant="bodyMedium"
-            customColor={item.isDone ? Colors.textTertiary : Colors.textPrimary}
-            style={item.isDone ? { textDecorationLine: 'line-through' } : undefined}
-          >
-            {item.title}
-          </Text>
-          {item.subtitle && (
-            <Text variant="caption" color="tertiary">{item.subtitle}</Text>
-          )}
-        </VStack>
-
-        <HStack gap="sm" style={{ alignItems: 'center' }}>
-          <Text variant="micro" color="tertiary">{item.durationMinutes}m</Text>
-          <Pressable onPress={() => onToggle(item.id)} hitSlop={8}>
-            <View style={[
-              styles.check,
-              item.isDone && { backgroundColor: Colors.mint, borderColor: Colors.mint },
-            ]}>
-              {item.isDone && <Text variant="micro" color="inverse">✓</Text>}
-            </View>
-          </Pressable>
-        </HStack>
-      </HStack>
-    </PressableCard>
+    <View style={styles.emptyWrap}>
+      <Text variant="displayMedium" color="primary" style={{ marginBottom: Spacing.sm }}>Plan vacío</Text>
+      <Text variant="body" color="secondary" style={{ textAlign: 'center' }}>
+        Añade hábitos o tareas desde la pestaña de hoy para que aparezcan aquí.
+      </Text>
+    </View>
   )
 }
 
 export default function PlanScreen() {
-  const [filter, setFilter] = useState<FilterType>('all')
-  const [items, setItems]   = useState([...MOCK_PLAN.plannedItems, ...BACKLOG_EXTRA])
+  const [plan,    setPlan]    = useState<ApiGeneratedPlan | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState<string | null>(null)
 
-  const toggleItem = (id: string) =>
-    setItems(prev => prev.map(i => i.id === id ? { ...i, isDone: !i.isDone } : i))
+  const load = useCallback(async () => {
+    try {
+      setError(null)
+      const data = await api.generate.plan()
+      setPlan(data)
+    } catch {
+      setError('No se pudo generar el plan.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const visible = filter === 'all'
-    ? items
-    : items.filter(i => i.itemType === filter)
+  useFocusEffect(useCallback(() => { load() }, [load]))
 
-  const planned = items.filter(i => !i.isDone).reduce((s, i) => s + i.durationMinutes, 0)
-  const total   = MOCK_PLAN.totalFreeMinutes
-
-  const todayItems    = visible.filter(i => MOCK_PLAN.plannedItems.find(p => p.id === i.id))
-  const backlogItems  = visible.filter(i => !MOCK_PLAN.plannedItems.find(p => p.id === i.id))
-  const deferredItems = MOCK_PLAN.deferredItems
+  const today = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })
+    .replace(/^./, c => c.toUpperCase())
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -144,70 +111,41 @@ export default function PlanScreen() {
 
         <View style={styles.header}>
           <Text variant="displayLarge" color="primary">Plan</Text>
-          <Text variant="body" color="secondary">Organiza tu día</Text>
+          <Text variant="body" color="secondary">{today}</Text>
         </View>
 
-        <View style={styles.section}>
-          <CapacityBar planned={planned} total={total} />
-        </View>
-
-        {/* Filters */}
-        <View style={styles.section}>
-          <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
-            {FILTERS.map(f => (
-              <Pressable
-                key={f.key}
-                onPress={() => setFilter(f.key)}
-                style={[styles.chip, filter === f.key && { backgroundColor: Colors.textPrimary }]}
-              >
-                <Text variant="micro" customColor={filter === f.key ? Colors.textInverse : Colors.textSecondary}>
-                  {f.label}
-                </Text>
-              </Pressable>
-            ))}
-          </HStack>
-        </View>
-
-        {/* Plan de hoy */}
-        {todayItems.length > 0 && (
-          <View style={styles.section}>
-            <Text variant="micro" color="secondary" style={styles.sectionLabel}>HOY · {todayItems.length} ITEMS</Text>
-            <VStack gap="sm">
-              {todayItems.map((item, i) => (
-                <PlanItem key={item.id} item={item} index={i} onToggle={toggleItem} />
-              ))}
-            </VStack>
+        {loading ? (
+          <View style={styles.emptyWrap}>
+            <ActivityIndicator size="large" color={Colors.textPrimary} />
           </View>
-        )}
-
-        {/* Backlog */}
-        {backlogItems.length > 0 && (
-          <View style={styles.section}>
-            <Text variant="micro" color="secondary" style={styles.sectionLabel}>BACKLOG · {backlogItems.length} ITEMS</Text>
-            <VStack gap="sm">
-              {backlogItems.map((item, i) => (
-                <PlanItem key={item.id} item={item} index={i} onToggle={toggleItem} />
-              ))}
-            </VStack>
+        ) : error ? (
+          <View style={styles.emptyWrap}>
+            <Text variant="body" color="secondary" style={{ textAlign: 'center' }}>{error}</Text>
           </View>
-        )}
-
-        {/* Diferidos */}
-        {filter === 'all' && deferredItems.length > 0 && (
+        ) : !plan || plan.items.length === 0 ? (
           <View style={styles.section}>
-            <Text variant="micro" color="secondary" style={styles.sectionLabel}>DIFERIDOS</Text>
-            <Card variant="flat" padding="md">
-              {deferredItems.map((item, i) => (
-                <HStack key={item.id} gap="md" style={{ alignItems: 'center' }}>
-                  <View style={[styles.typeBadge, { backgroundColor: Colors.surface2 }]}>
-                    <Text variant="micro" color="tertiary">{(TYPE_LABELS[item.itemType] ?? item.itemType).toUpperCase()}</Text>
+            <EmptyPlan />
+          </View>
+        ) : (
+          <>
+            <View style={styles.section}>
+              <CapacityBar plan={plan} />
+            </View>
+
+            <View style={styles.section}>
+              <Text variant="micro" color="secondary" style={styles.sectionLabel}>AGENDA DE HOY</Text>
+              <Card padding="none">
+                {plan.items.map((item, i) => (
+                  <View key={`${item.kind}-${item.id}`}>
+                    <PlanItem item={item} />
+                    {i < plan.items.length - 1 && (
+                      <View style={styles.divider} />
+                    )}
                   </View>
-                  <Text variant="bodyMedium" color="secondary" style={{ flex: 1 }}>{item.title}</Text>
-                  <Text variant="micro" color="tertiary">{item.durationMinutes}m</Text>
-                </HStack>
-              ))}
-            </Card>
-          </View>
+                ))}
+              </Card>
+            </View>
+          </>
         )}
 
         <View style={{ height: 100 }} />
@@ -228,45 +166,48 @@ const styles = StyleSheet.create({
   section:      { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },
   sectionLabel: { marginBottom: Spacing.sm },
 
-  chip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.full,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-
-  trackOuter: {
-    height: 8, borderRadius: 4,
-    backgroundColor: Colors.surface2,
-    overflow: 'hidden',
-    borderWidth: 1.5, borderColor: Colors.border,
-  },
-  trackFill: { height: '100%' },
-
-  planItem: {},
-  indexBox: {
-    width: 28, height: 28,
-    borderRadius: Radius.sm,
-    borderWidth: 1.5,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.surface2,
+  emptyWrap: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: 80,
   },
-  typeBadge: {
+
+  barTrack: {
+    height: 8, borderRadius: 4,
+    backgroundColor: Colors.border,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%', borderRadius: 4,
+    backgroundColor: Colors.textPrimary,
+  },
+
+  planRow: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    alignItems: 'center',
+  },
+  timeCol: {
+    width: 52,
+    alignItems: 'flex-start',
+  },
+  stripe: {
+    width: 4, height: 40, borderRadius: 2,
+  },
+  kindBadge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: Spacing.xs + 2,
     paddingVertical: 2,
     borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    borderWidth: 1.5,
+    marginBottom: 2,
   },
-  check: {
-    width: 24, height: 24, borderRadius: 12,
-    borderWidth: 1.5, borderColor: Colors.border,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.surface,
+  divider: {
+    height: 1.5,
+    backgroundColor: Colors.border,
+    opacity: 0.15,
+    marginHorizontal: Spacing.lg,
   },
 })
