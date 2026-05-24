@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View } from 'react-native'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { StatusBar } from 'expo-status-bar'
 import { api } from '@/constants/api'
 
 export default function RootLayout() {
@@ -23,6 +24,7 @@ export default function RootLayout() {
 
   return (
     <View style={{ flex: 1 }}>
+      <StatusBar style="dark" backgroundColor="#F5F0E8" />
       <SafeAreaProvider>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
