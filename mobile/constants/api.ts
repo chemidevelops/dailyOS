@@ -156,6 +156,6 @@ export const api = {
       request<ApiSettings>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
   },
   generate: {
-    plan: () => request<ApiGeneratedPlan>('/generate'),
+    plan: (date?: string) => request<ApiGeneratedPlan>(date ? `/generate?date=${date}` : '/generate'),
   },
 }

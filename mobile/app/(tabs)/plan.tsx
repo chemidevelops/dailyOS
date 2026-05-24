@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react'
-import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native'
+import { useState, useCallback, useEffect } from 'react'
+import { View, ScrollView, StyleSheet, ActivityIndicator, Pressable } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { Text, Card, HStack, VStack } from '@/components/ui'
-import { Colors, Spacing, Radius } from '@/constants/tokens'
+import { Colors, Spacing, Radius, FontWeight } from '@/constants/tokens'
 import { api, ApiGeneratedPlan, ApiGeneratedItem } from '@/constants/api'
 
 const KIND_LABEL: Record<string, string> = {
@@ -86,16 +86,31 @@ function EmptyPlan() {
   )
 }
 
+function isoDate(offset: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + offset)
+  return d.toISOString().split('T')[0]
+}
+
+function dayLabel(offset: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + offset)
+  return d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })
+    .replace(/^./, c => c.toUpperCase())
+}
+
 export default function PlanScreen() {
-  const insets = useSafeAreaInsets()
+  const insets  = useSafeAreaInsets()
+  const [offset,  setOffset]  = useState(0)  // 0 = today, 1 = tomorrow
   const [plan,    setPlan]    = useState<ApiGeneratedPlan | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (dayOffset: number) => {
+    setLoading(true)
+    setError(null)
     try {
-      setError(null)
-      const data = await api.generate.plan()
+      const data = await api.generate.plan(dayOffset === 0 ? undefined : isoDate(dayOffset))
       setPlan(data)
     } catch {
       setError('No se pudo generar el plan.')
@@ -104,18 +119,33 @@ export default function PlanScreen() {
     }
   }, [])
 
-  useFocusEffect(useCallback(() => { load() }, [load]))
+  useFocusEffect(useCallback(() => { load(offset) }, [load, offset]))
 
-  const today = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })
-    .replace(/^./, c => c.toUpperCase())
+  useEffect(() => { load(offset) }, [offset])
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
 
         <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16 }]}>
-          <Text variant="displayLarge" color="primary">Plan</Text>
-          <Text variant="body" color="secondary">{today}</Text>
+          <View>
+            <Text variant="displayLarge" color="primary">{offset === 0 ? 'Plan' : 'Mañana'}</Text>
+            <Text variant="body" color="secondary">{dayLabel(offset)}</Text>
+          </View>
+          <HStack gap="xs" style={styles.dayToggle}>
+            {[{ label: 'HOY', val: 0 }, { label: 'MAÑANA', val: 1 }].map(({ label, val }) => (
+              <Pressable
+                key={val}
+                onPress={() => setOffset(val)}
+                style={[styles.toggleChip, offset === val && styles.toggleChipActive]}
+              >
+                <Text variant="micro" customColor={offset === val ? Colors.textInverse : Colors.textSecondary}
+                  style={offset === val ? { fontWeight: FontWeight.bold } : undefined}>
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
+          </HStack>
         </View>
 
         {loading ? (
@@ -165,6 +195,25 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  dayToggle: {
+    marginTop: Spacing.xs,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    padding: 3,
+  },
+  toggleChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+  },
+  toggleChipActive: {
+    backgroundColor: Colors.textPrimary,
   },
   section:      { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },
   sectionLabel: { marginBottom: Spacing.sm },

@@ -3,7 +3,7 @@ Daily plan generator.
 Free time = after work until sleep.
 For each pending activity, picks the active item (if any) as the concrete task.
 """
-from datetime import date
+import datetime as dt
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -53,8 +53,8 @@ class GeneratedPlan(BaseModel):
 
 
 @router.get("", response_model=GeneratedPlan)
-async def generate_plan(db: DB):
-    today     = date.today()
+async def generate_plan(db: DB, date: str | None = None):
+    today     = dt.date.fromisoformat(date) if date else dt.date.today()
     today_iso = today.isoformat()
     weekday   = today.isoweekday()
 
