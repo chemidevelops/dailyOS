@@ -21,17 +21,17 @@ function ChipRow<T extends string>({
     <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
       {options.map(opt => (
         <Pressable
-          key={opt}
+          key={String(opt)}
           onPress={() => onChange(opt)}
           style={[
             styles.chip,
-            value === opt && {
+            value === String(opt) && {
               backgroundColor: getColor ? getColor(opt) : Colors.textPrimary,
               borderColor: getColor ? getColor(opt) : Colors.textPrimary,
             },
           ]}
         >
-          <Text variant="captionMedium" customColor={value === opt ? Colors.textInverse : Colors.textSecondary}>
+          <Text variant="captionMedium" customColor={value === String(opt) ? Colors.textInverse : Colors.textSecondary}>
             {getLabel(opt)}
           </Text>
         </Pressable>
