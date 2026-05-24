@@ -34,6 +34,9 @@ function PlanItem({ item }: { item: ApiGeneratedItem }) {
           <Text variant="micro" customColor={KIND_COLOR[item.kind]}>{KIND_LABEL[item.kind]}</Text>
         </View>
         <Text variant="bodyMedium" color="primary" numberOfLines={2}>{item.title}</Text>
+        {item.habit_title && (
+          <Text variant="micro" color="tertiary">vía {item.habit_title}</Text>
+        )}
       </VStack>
 
       <Text variant="micro" color="tertiary">{item.duration_minutes}m</Text>

@@ -54,6 +54,7 @@ export type ApiLeisure = {
   total_hours: number | null
   rating: number | null
   subtitle: string | null
+  habit_id: number | null
 }
 
 export type ApiLeisureCreate = {
@@ -63,6 +64,7 @@ export type ApiLeisureCreate = {
   status: string
   progress: number
   subtitle?: string
+  habit_id?: number | null
 }
 
 // ─── Task types ──────────────────────────────────────────────────────────────
@@ -101,11 +103,12 @@ export type ApiGeneratedItem = {
   id: number
   kind: 'habit' | 'task' | 'leisure'
   title: string
+  habit_title: string | null
   color: string
   duration_minutes: number
   start_time: string | null
   end_time: string | null
-  during_work: boolean
+  leisure_item_id: number | null
 }
 
 export type ApiGeneratedPlan = {

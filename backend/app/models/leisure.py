@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Float, Integer, String, func
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -36,6 +36,7 @@ class LeisureItem(Base):
     total_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
     rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
     subtitle: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    habit_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("habits.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

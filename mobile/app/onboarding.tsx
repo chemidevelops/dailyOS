@@ -264,7 +264,7 @@ function StepHabits({ onNext, onBack }: { onNext: (habits: HabitDraft[]) => void
 // ─── Step 3: Ocio ─────────────────────────────────────────────────────────────
 
 type LeisureType = 'game' | 'anime' | 'book' | 'series'
-type LeisureDraft = { title: string; type: LeisureType; color: string; status: 'playing' | 'pending' }
+type LeisureDraft = { title: string; type: LeisureType; color: string; status: 'playing' | 'pending'; habitIndex: number | null }
 
 const LEISURE_TYPES: { key: LeisureType; label: string }[] = [
   { key: 'game',   label: 'Juego' },
@@ -274,14 +274,18 @@ const LEISURE_TYPES: { key: LeisureType; label: string }[] = [
 ]
 const LEISURE_COLORS = ['#FF4D30', '#3D5AFE', '#FF7700', '#8B2FC9', '#00C896', '#FFD600']
 
-function LeisureDraftCard({ item, onRemove }: { item: LeisureDraft; onRemove: () => void }) {
-  const typeLabel = LEISURE_TYPES.find(t => t.key === item.type)!.label
+function LeisureDraftCard({ item, habits, onRemove }: { item: LeisureDraft; habits: HabitDraft[]; onRemove: () => void }) {
+  const typeLabel  = LEISURE_TYPES.find(t => t.key === item.type)!.label
+  const habitLabel = item.habitIndex !== null ? habits[item.habitIndex]?.title : null
   return (
     <HStack style={styles.draftCard} gap="md">
       <View style={[styles.draftColor, { backgroundColor: item.color }]} />
       <VStack gap="xs" style={{ flex: 1 }}>
         <Text variant="bodyMedium" color="primary">{item.title}</Text>
-        <Text variant="micro" color="tertiary">{typeLabel} · {item.status === 'playing' ? 'En curso' : 'Pendiente'}</Text>
+        <Text variant="micro" color="tertiary">
+          {typeLabel} · {item.status === 'playing' ? 'En curso' : 'Pendiente'}
+          {habitLabel ? ` · ${habitLabel}` : ''}
+        </Text>
       </VStack>
       <Pressable onPress={onRemove} hitSlop={12}>
         <Text variant="captionMedium" color="tertiary">✕</Text>
@@ -290,17 +294,24 @@ function LeisureDraftCard({ item, onRemove }: { item: LeisureDraft; onRemove: ()
   )
 }
 
-function StepLeisure({ onFinish, onBack, saving }: { onFinish: (items: LeisureDraft[]) => void; onBack: () => void; saving: boolean }) {
-  const [items,  setItems]  = useState<LeisureDraft[]>([])
-  const [title,  setTitle]  = useState('')
-  const [type,   setType]   = useState<LeisureType>('game')
-  const [color,  setColor]  = useState(LEISURE_COLORS[0])
-  const [status, setStatus] = useState<'playing'|'pending'>('pending')
+function StepLeisure({ onFinish, onBack, saving, habits }: {
+  onFinish: (items: LeisureDraft[]) => void
+  onBack: () => void
+  saving: boolean
+  habits: HabitDraft[]
+}) {
+  const [items,      setItems]      = useState<LeisureDraft[]>([])
+  const [title,      setTitle]      = useState('')
+  const [type,       setType]       = useState<LeisureType>('game')
+  const [color,      setColor]      = useState(LEISURE_COLORS[0])
+  const [status,     setStatus]     = useState<'playing'|'pending'>('pending')
+  const [habitIndex, setHabitIndex] = useState<number | null>(null)
 
   const addItem = () => {
     if (!title.trim()) return
-    setItems(prev => [...prev, { title: title.trim(), type, color, status }])
+    setItems(prev => [...prev, { title: title.trim(), type, color, status, habitIndex }])
     setTitle('')
+    setHabitIndex(null)
   }
 
   return (
@@ -313,7 +324,7 @@ function StepLeisure({ onFinish, onBack, saving }: { onFinish: (items: LeisureDr
       {items.length > 0 && (
         <View style={styles.section}>
           {items.map((item, i) => (
-            <LeisureDraftCard key={i} item={item} onRemove={() => setItems(prev => prev.filter((_, j) => j !== i))} />
+            <LeisureDraftCard key={i} item={item} habits={habits} onRemove={() => setItems(prev => prev.filter((_, j) => j !== i))} />
           ))}
         </View>
       )}
@@ -348,6 +359,29 @@ function StepLeisure({ onFinish, onBack, saving }: { onFinish: (items: LeisureDr
           getLabel={v => v === 'playing' ? 'En curso' : 'Pendiente'}
           getColor={v => v === 'playing' ? Colors.mint : Colors.indigo}
         />
+
+        {habits.length > 0 && (
+          <>
+            <Text variant="micro" color="secondary" style={[styles.label, { marginTop: Spacing.md }]}>PERTENECE AL HÁBITO</Text>
+            <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
+              <Pressable
+                onPress={() => setHabitIndex(null)}
+                style={[styles.chip, habitIndex === null && styles.chipSelected]}
+              >
+                <Text variant="captionMedium" customColor={habitIndex === null ? Colors.textInverse : Colors.textSecondary}>Ninguno</Text>
+              </Pressable>
+              {habits.map((h, i) => (
+                <Pressable
+                  key={i}
+                  onPress={() => setHabitIndex(i)}
+                  style={[styles.chip, habitIndex === i && { backgroundColor: h.color, borderColor: h.color }]}
+                >
+                  <Text variant="captionMedium" customColor={habitIndex === i ? '#fff' : Colors.textSecondary}>{h.title}</Text>
+                </Pressable>
+              ))}
+            </HStack>
+          </>
+        )}
 
         <Text variant="micro" color="secondary" style={[styles.label, { marginTop: Spacing.md }]}>COLOR</Text>
         <HStack gap="sm">
@@ -386,7 +420,7 @@ function StepLeisure({ onFinish, onBack, saving }: { onFinish: (items: LeisureDr
 // ─── Main onboarding screen ───────────────────────────────────────────────────
 
 type HabitDraftOut   = { title: string; color: string; duration: number; target: number }
-type LeisureDraftOut = { title: string; type: LeisureType; color: string; status: 'playing' | 'pending' }
+type LeisureDraftOut = { title: string; type: LeisureType; color: string; status: 'playing' | 'pending'; habitIndex: number | null }
 
 export default function OnboardingScreen() {
   const router  = useRouter()
@@ -418,24 +452,28 @@ export default function OnboardingScreen() {
           onboarding_done: true,
         })
       }
-      // Save habits
+      // Save habits — keep the saved IDs to link leisure items
+      const savedHabitIds: number[] = []
       for (const h of habitsData) {
-        await api.habits.create({
+        const saved = await api.habits.create({
           title: h.title,
           color: h.color,
           target_per_week: h.target,
           duration_minutes: h.duration,
           category: 'productivity',
         })
+        savedHabitIds.push(saved.id)
       }
-      // Save leisure
+      // Save leisure — link to habit if selected
       for (const l of leisureItems) {
+        const habitId = l.habitIndex !== null ? (savedHabitIds[l.habitIndex] ?? null) : null
         await api.leisure.create({
           title: l.title,
           type: l.type,
           color: l.color,
           status: l.status,
           progress: 0,
+          habit_id: habitId,
         })
       }
       router.replace('/(tabs)')
@@ -454,7 +492,7 @@ export default function OnboardingScreen() {
 
         {step === 1 && <StepSchedule onNext={handleSchedule} />}
         {step === 2 && <StepHabits onNext={handleHabits} onBack={() => setStep(1)} />}
-        {step === 3 && <StepLeisure onFinish={handleFinish} onBack={() => setStep(2)} saving={saving} />}
+        {step === 3 && <StepLeisure onFinish={handleFinish} onBack={() => setStep(2)} saving={saving} habits={habitsData} />}
       </SafeAreaView>
     </KeyboardAvoidingView>
   )

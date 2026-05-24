@@ -15,6 +15,7 @@ class LeisureBase(BaseModel):
     total_hours: float | None = Field(default=None, ge=0)
     rating: int | None = Field(default=None, ge=1, le=5)
     subtitle: str | None = Field(default=None, max_length=255)
+    habit_id: int | None = None
 
 
 class LeisureCreate(LeisureBase):
@@ -31,6 +32,7 @@ class LeisureUpdate(BaseModel):
     total_hours: float | None = Field(default=None, ge=0)
     rating: int | None = Field(default=None, ge=1, le=5)
     subtitle: str | None = Field(default=None, max_length=255)
+    habit_id: int | None = None
 
 
 class LeisureProgressUpdate(BaseModel):
