@@ -6,7 +6,16 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Text, Card, PressableCard, Button, HStack, VStack, Divider } from '@/components/ui'
 import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
-import { api, ApiActivity, ApiTask } from '@/constants/api'
+import { api, ApiActivity, ApiTask, ApiSettings } from '@/constants/api'
+
+function minutesUntilSleep(settings: ApiSettings | null): number {
+  if (!settings) return 999
+  const now = new Date()
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const [h, m] = settings.sleep_start.split(':').map(Number)
+  const sleepMin = h * 60 + m
+  return Math.max(0, sleepMin - nowMin)
+}
 
 type Energy = 'high' | 'normal' | 'low'
 type Mode   = 'focus' | 'normal' | 'rest'
@@ -137,7 +146,10 @@ function EmptyDayState() {
         Día en blanco
       </Text>
       <Text variant="body" color="secondary" style={{ marginBottom: Spacing.lg }}>
-        Añade actividades o tareas para empezar a planificar tu día.
+        {freeMinutes < 30
+        ? 'Ya es tarde. Disfruta el descanso.'
+        : 'Añade actividades o tareas para empezar a planificar tu día.'}
+
       </Text>
       <Button
         label="Añadir algo +"
@@ -155,6 +167,7 @@ export default function TodayScreen() {
   const [checkInDone, setCheckInDone] = useState(false)
   const [activities, setActivities] = useState<ApiActivity[]>([])
   const [tasks,      setTasks]      = useState<ApiTask[]>([])
+  const [settings,   setSettings]   = useState<ApiSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
 
@@ -167,9 +180,10 @@ export default function TodayScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [a, t] = await Promise.all([api.activities.list(), api.tasks.list()])
+      const [a, t, s] = await Promise.all([api.activities.list(), api.tasks.list(), api.settings.get()])
       setActivities(a.filter(x => x.is_active))
       setTasks(t.filter(x => x.status === 'pending'))
+      setSettings(s)
     } catch {
       // silent — empty state shown
     } finally {
@@ -179,14 +193,20 @@ export default function TodayScreen() {
 
   useFocusEffect(useCallback(() => { load() }, [load]))
 
+  const freeMinutes = minutesUntilSleep(settings)
+
   const pendingActivities = activities.filter(a => {
     const log = a.logs.find(l => l.date === TODAY_ISO)
-    return log?.status !== 'done'
+    const notDone = log?.status !== 'done'
+    const fitsInTime = a.duration_minutes <= freeMinutes
+    return notDone && fitsInTime
   })
+
+  const pendingTasks = tasks.filter(t => t.duration_minutes <= freeMinutes)
 
   const allItems: TodayItem[] = [
     ...pendingActivities.map(a => ({ kind: 'activity' as const, activity: a })),
-    ...tasks.map(t => ({ kind: 'task' as const, task: t })),
+    ...pendingTasks.map(t => ({ kind: 'task' as const, task: t })),
   ]
   const visibleItems = allItems.filter(i => {
     const key = i.kind === 'activity' ? `a-${i.activity.id}` : `t-${i.task.id}`
