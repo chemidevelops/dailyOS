@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { Text, Card, HStack, VStack, Divider } from '@/components/ui'
 import { Colors, Spacing, Radius, FontWeight } from '@/constants/tokens'
 import { api, ApiActivity } from '@/constants/api'
@@ -59,7 +59,11 @@ function WeekDots({ days, color }: { days: DayStatus[]; color: string }) {
   )
 }
 
-function ActivityCard({ activity, onToggle }: { activity: ApiActivity; onToggle: (id: number) => void }) {
+function ActivityCard({ activity, onToggle, onPress }: {
+  activity: ApiActivity
+  onToggle: (id: number) => void
+  onPress: (id: number) => void
+}) {
   const weekDays  = activityWeekDays(activity)
   const todayLog  = activity.logs.find(l => l.date === TODAY_ISO)
   const isDone    = todayLog?.status === 'done'
@@ -68,7 +72,7 @@ function ActivityCard({ activity, onToggle }: { activity: ApiActivity; onToggle:
   const activeItem = activity.items.find(i => i.status === 'active')
 
   return (
-    <Pressable onPress={() => onToggle(activity.id)} style={styles.activityCard}>
+    <Pressable onPress={() => onPress(activity.id)} style={styles.activityCard}>
       <HStack style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <VStack gap="xs" style={{ flex: 1, marginRight: Spacing.md }}>
           <HStack gap="sm" style={{ alignItems: 'center' }}>
@@ -85,12 +89,14 @@ function ActivityCard({ activity, onToggle }: { activity: ApiActivity; onToggle:
           </HStack>
         </VStack>
 
-        <View style={[
-          styles.checkBox,
-          isDone && { backgroundColor: activity.color, borderColor: activity.color },
-        ]}>
-          {isDone && <Text variant="caption" color="inverse" style={{ fontWeight: FontWeight.bold }}>✓</Text>}
-        </View>
+        <Pressable onPress={() => onToggle(activity.id)} hitSlop={10}>
+          <View style={[
+            styles.checkBox,
+            isDone && { backgroundColor: activity.color, borderColor: activity.color },
+          ]}>
+            {isDone && <Text variant="caption" color="inverse" style={{ fontWeight: FontWeight.bold }}>✓</Text>}
+          </View>
+        </Pressable>
       </HStack>
 
       <View style={styles.progressTrack}>
@@ -141,6 +147,7 @@ function EmptyState() {
 
 export default function ActivitiesScreen() {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const [activities, setActivities] = useState<ApiActivity[]>([])
   const [loading,    setLoading]    = useState(true)
   const [error,      setError]      = useState<string | null>(null)
@@ -229,7 +236,7 @@ export default function ActivitiesScreen() {
                 <Card padding="none">
                   {pending.map((a, i) => (
                     <View key={a.id}>
-                      <ActivityCard activity={a} onToggle={toggleActivity} />
+                      <ActivityCard activity={a} onToggle={toggleActivity} onPress={id => router.push(`/activity/${id}`)} />
                       {i < pending.length - 1 && <Divider style={{ marginHorizontal: Spacing.lg }} />}
                     </View>
                   ))}
@@ -243,7 +250,7 @@ export default function ActivitiesScreen() {
                 <Card padding="none" variant="flat">
                   {done.map((a, i) => (
                     <View key={a.id}>
-                      <ActivityCard activity={a} onToggle={toggleActivity} />
+                      <ActivityCard activity={a} onToggle={toggleActivity} onPress={id => router.push(`/activity/${id}`)} />
                       {i < done.length - 1 && <Divider style={{ marginHorizontal: Spacing.lg }} />}
                     </View>
                   ))}
