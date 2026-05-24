@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+
+    <!-- PWA fullscreen -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="DailyOS" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#F5F0E8" />
+
+    <title>DailyOS</title>
+
+    <style id="expo-reset">
+      * { box-sizing: border-box; }
+      html, body {
+        height: 100%;
+        height: 100dvh;
+        margin: 0;
+        padding: 0;
+        background-color: #F5F0E8;
+        overscroll-behavior: none;
+      }
+      body { overflow: hidden; }
+      #root {
+        display: flex;
+        height: 100%;
+        height: 100dvh;
+        flex: 1;
+      }
+    </style>
+
+    <link rel="shortcut icon" href="/favicon.ico" />
+  </head>
+  <body>
+    <noscript>Necesitas JavaScript para usar DailyOS.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
