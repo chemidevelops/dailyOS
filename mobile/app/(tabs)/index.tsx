@@ -5,65 +5,29 @@ import { useRouter, useFocusEffect } from 'expo-router'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Text, Card, PressableCard, Button, HStack, VStack, Divider } from '@/components/ui'
-import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
-import { api, ApiActivity, ApiTask, ApiSettings, ApiGeneratedPlan } from '@/constants/api'
-
-function minutesUntilSleep(settings: ApiSettings | null): number {
-  if (!settings) return 999
-  const now = new Date()
-  const nowMin = now.getHours() * 60 + now.getMinutes()
-  const [h, m] = settings.sleep_start.split(':').map(Number)
-  let sleepMin = h * 60 + m
-  if (sleepMin === 0) sleepMin = 1440  // 00:00 = medianoche = fin de día
-  return Math.max(0, sleepMin - nowMin)
-}
-
-type Energy = 'high' | 'normal' | 'low'
-type Mode   = 'focus' | 'normal' | 'rest'
+import { Colors, Spacing, Radius, FontWeight } from '@/constants/tokens'
+import { api, ApiGeneratedItem, ApiGeneratedPlan } from '@/constants/api'
 
 const TODAY_ISO = new Date().toISOString().split('T')[0]
 
-function EnergyCheckIn({ onSubmit }: { onSubmit: (e: Energy, m: Mode) => void }) {
-  const [energy, setEnergy] = useState<Energy | null>(null)
-  const [step, setStep]     = useState<'energy' | 'mode'>('energy')
+// ─── Energy check-in ──────────────────────────────────────────────────────────
 
-  const ENERGY = [
-    { value: 'high'   as Energy, label: 'ACTIVO',    bg: Colors.yellow,    fg: Colors.textPrimary },
-    { value: 'normal' as Energy, label: 'NORMAL',    bg: Colors.surface,   fg: Colors.textPrimary },
-    { value: 'low'    as Energy, label: 'TRANQUILO', bg: Colors.mintLight, fg: Colors.textPrimary },
+type Energy = 'high' | 'normal' | 'low'
+
+function EnergyCheckIn({ onSubmit }: { onSubmit: (e: Energy) => void }) {
+  const OPTIONS: { value: Energy; label: string; bg: string }[] = [
+    { value: 'high',   label: 'ACTIVO',    bg: Colors.yellow    },
+    { value: 'normal', label: 'NORMAL',    bg: Colors.surface   },
+    { value: 'low',    label: 'TRANQUILO', bg: Colors.mintLight },
   ]
-  const MODES = [
-    { value: 'focus'  as Mode, label: 'FOCO',     bg: Colors.indigoLight, fg: Colors.textPrimary },
-    { value: 'normal' as Mode, label: 'NORMAL',   bg: Colors.surface,     fg: Colors.textPrimary },
-    { value: 'rest'   as Mode, label: 'DESCANSO', bg: Colors.coralLight,  fg: Colors.textPrimary },
-  ]
-
-  const options = step === 'energy' ? ENERGY : MODES
-
   return (
     <View style={styles.checkInWrap}>
-      <Text variant="micro" color="secondary" style={{ marginBottom: Spacing.sm }}>
-        {step === 'energy' ? '¿CÓMO ESTÁS HOY?' : '¿QUÉ MODO QUIERES?'}
-      </Text>
+      <Text variant="micro" color="secondary" style={{ marginBottom: Spacing.sm }}>¿CÓMO ESTÁS HOY?</Text>
       <HStack gap="sm">
-        {options.map(opt => (
-          <Pressable
-            key={opt.value}
-            onPress={() => {
-              if (step === 'energy') {
-                setEnergy(opt.value as Energy)
-                setTimeout(() => setStep('mode'), 180)
-              } else {
-                onSubmit(energy!, opt.value as Mode)
-              }
-            }}
-            style={[
-              styles.chip,
-              { backgroundColor: opt.bg },
-              energy === opt.value && step === 'energy' && styles.chipSelected,
-            ]}
-          >
-            <Text variant="captionMedium" customColor={opt.fg}>{opt.label}</Text>
+        {OPTIONS.map(opt => (
+          <Pressable key={opt.value} onPress={() => onSubmit(opt.value)}
+            style={[styles.chip, { backgroundColor: opt.bg }]}>
+            <Text variant="captionMedium" color="primary">{opt.label}</Text>
           </Pressable>
         ))}
       </HStack>
@@ -71,52 +35,47 @@ function EnergyCheckIn({ onSubmit }: { onSubmit: (e: Energy, m: Mode) => void })
   )
 }
 
-type TodayItem =
-  | { kind: 'activity'; activity: ApiActivity }
-  | { kind: 'task';     task: ApiTask }
+// ─── Plan item cards ──────────────────────────────────────────────────────────
 
-function TodayCard({ item, onDone }: { item: TodayItem; onDone: () => void }) {
+function PrimaryCard({ item, onDone }: { item: ApiGeneratedItem; onDone: () => void }) {
   const router = useRouter()
-
-  const title    = item.kind === 'activity' ? item.activity.title : item.task.title
-  const color    = item.kind === 'activity' ? item.activity.color : item.task.color
-  const minutes  = item.kind === 'activity' ? item.activity.duration_minutes : item.task.duration_minutes
   const typeLabel = item.kind === 'activity' ? 'ACTIVIDAD' : 'TAREA'
-
-  const handleStart = () => router.push({
-    pathname: '/focus',
-    params: { title, minutes: String(minutes), color },
-  })
 
   return (
     <PressableCard variant="elevated" style={styles.primaryCard} onPress={() => {}}>
       <HStack style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md }}>
-        <View style={[styles.typeBadge, { backgroundColor: color }]}>
+        <View style={[styles.typeBadge, { backgroundColor: item.color }]}>
           <Text variant="micro" customColor="#fff">{typeLabel}</Text>
         </View>
-        <View style={[styles.durationPill]}>
-          <Text variant="micro" color="secondary">{minutes} MIN</Text>
+        <View style={styles.durationPill}>
+          <Text variant="micro" color="secondary">{item.duration_minutes} MIN</Text>
         </View>
       </HStack>
 
-      <Text variant="displayMedium" color="primary" numberOfLines={2} style={{ marginBottom: Spacing.lg }}>
-        {title}
+      <Text variant="displayMedium" color="primary" numberOfLines={2} style={{ marginBottom: Spacing.xs }}>
+        {item.title}
       </Text>
+      {item.activity_title && (
+        <Text variant="body" color="secondary" style={{ marginBottom: Spacing.lg }}>
+          vía {item.activity_title}
+        </Text>
+      )}
 
       <HStack style={{ justifyContent: 'flex-end' }} gap="sm">
         <Button label="Hecho" variant="ghost" size="sm" onPress={onDone} />
-        {minutes > 0 && <Button label="Empezar →" variant="secondary" size="sm" onPress={handleStart} />}
+        {item.duration_minutes > 0 && (
+          <Button label="Empezar →" variant="secondary" size="sm" onPress={() =>
+            router.push({ pathname: '/focus', params: { title: item.title, minutes: String(item.duration_minutes), color: item.color } })
+          } />
+        )}
       </HStack>
     </PressableCard>
   )
 }
 
-function AgendaRow({ item, onDone }: { item: TodayItem; onDone: () => void }) {
+function AgendaRow({ item, onDone }: { item: ApiGeneratedItem; onDone: () => void }) {
   const [done, setDone] = useState(false)
   const handle = () => { setDone(true); setTimeout(onDone, 300) }
-  const title  = item.kind === 'activity' ? item.activity.title : item.task.title
-  const color  = item.kind === 'activity' ? item.activity.color : item.task.color
-  const mins   = item.kind === 'activity' ? item.activity.duration_minutes : item.task.duration_minutes
 
   return (
     <HStack style={[styles.agendaRow, done && { opacity: 0.3 }]} gap="md">
@@ -125,35 +84,29 @@ function AgendaRow({ item, onDone }: { item: TodayItem; onDone: () => void }) {
           {done && <Text variant="micro" color="inverse">✓</Text>}
         </View>
       </Pressable>
-      <View style={[styles.stripe, { backgroundColor: color }]} />
-      <Text
-        variant="bodyMedium"
-        customColor={done ? Colors.textTertiary : Colors.textPrimary}
-        style={[{ flex: 1 }, done ? { textDecorationLine: 'line-through' } : undefined]}
-        numberOfLines={1}
-      >
-        {title}
-      </Text>
-      <Text variant="micro" color="tertiary">{mins}m</Text>
+      <View style={[styles.stripe, { backgroundColor: item.color }]} />
+      <VStack gap="xs" style={{ flex: 1 }}>
+        <Text variant="bodyMedium"
+          customColor={done ? Colors.textTertiary : Colors.textPrimary}
+          style={done ? { textDecorationLine: 'line-through' } : undefined}
+          numberOfLines={1}>
+          {item.title}
+        </Text>
+        {item.activity_title && (
+          <Text variant="micro" color="tertiary">vía {item.activity_title}</Text>
+        )}
+      </VStack>
+      {item.start_time && (
+        <Text variant="micro" color="tertiary">{item.start_time}</Text>
+      )}
+      <Text variant="micro" color="tertiary">{item.duration_minutes}m</Text>
     </HStack>
   )
 }
 
 // ─── Day guide modal ──────────────────────────────────────────────────────────
 
-const KIND_COLOR: Record<string, string> = { activity: Colors.mint, task: Colors.indigo }
-const KIND_LABEL: Record<string, string> = { activity: 'ACTIVIDAD', task: 'TAREA' }
-
-function DayGuideModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const [plan,    setPlan]    = useState<ApiGeneratedPlan | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (!visible) return
-    setLoading(true)
-    api.generate.plan().then(setPlan).catch(() => {}).finally(() => setLoading(false))
-  }, [visible])
-
+function DayGuideModal({ visible, plan, onClose }: { visible: boolean; plan: ApiGeneratedPlan | null; onClose: () => void }) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bg }} edges={['top', 'bottom']}>
@@ -164,44 +117,35 @@ function DayGuideModal({ visible, onClose }: { visible: boolean; onClose: () => 
           </Pressable>
         </HStack>
 
-        {loading ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator size="large" color={Colors.textPrimary} />
-          </View>
-        ) : !plan || plan.items.length === 0 ? (
+        {!plan || plan.items.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl }}>
             <Text variant="body" color="secondary" style={{ textAlign: 'center' }}>No hay nada planificado para hoy.</Text>
           </View>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: Spacing.xl }}>
             {plan.work_end && (
-              <View style={guideStyles.nowLine}>
-                <View style={guideStyles.nowDot} />
+              <HStack gap="sm" style={{ marginBottom: Spacing.lg, alignItems: 'center' }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.textTertiary }} />
                 <Text variant="micro" color="secondary">Trabajo hasta las {plan.work_end}</Text>
-              </View>
+              </HStack>
             )}
             {plan.items.map((item, i) => (
-              <View key={`${item.kind}-${item.id}`} style={guideStyles.row}>
-                <View style={guideStyles.timeCol}>
+              <HStack key={`${item.kind}-${item.id}-${i}`} style={{ marginBottom: Spacing.lg, alignItems: 'center' }} gap="md">
+                <View style={{ width: 52 }}>
                   {item.start_time && (
-                    <>
+                    <VStack gap="xs">
                       <Text variant="captionMedium" color="primary">{item.start_time}</Text>
                       <Text variant="micro" color="tertiary">{item.end_time}</Text>
-                    </>
+                    </VStack>
                   )}
                 </View>
-                <View style={[guideStyles.stripe, { backgroundColor: item.color }]} />
+                <View style={{ width: 4, height: 44, borderRadius: 2, backgroundColor: item.color }} />
                 <VStack gap="xs" style={{ flex: 1 }}>
-                  <View style={[guideStyles.badge, { borderColor: (KIND_COLOR[item.kind] ?? Colors.border) + '60' }]}>
-                    <Text variant="micro" customColor={KIND_COLOR[item.kind] ?? Colors.textTertiary}>{KIND_LABEL[item.kind] ?? item.kind.toUpperCase()}</Text>
-                  </View>
                   <Text variant="bodyMedium" color="primary" numberOfLines={2}>{item.title}</Text>
-                  {item.activity_title && (
-                    <Text variant="micro" color="tertiary">vía {item.activity_title}</Text>
-                  )}
+                  {item.activity_title && <Text variant="micro" color="tertiary">vía {item.activity_title}</Text>}
                 </VStack>
                 <Text variant="micro" color="tertiary">{item.duration_minutes}m</Text>
-              </View>
+              </HStack>
             ))}
             <View style={{ height: 40 }} />
           </ScrollView>
@@ -211,49 +155,14 @@ function DayGuideModal({ visible, onClose }: { visible: boolean; onClose: () => 
   )
 }
 
-const guideStyles = StyleSheet.create({
-  nowLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.lg },
-  nowDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.textTertiary },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.lg },
-  timeCol: { width: 52, alignItems: 'flex-start' },
-  stripe:  { width: 4, height: 44, borderRadius: 2 },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.xs + 2, paddingVertical: 2,
-    borderRadius: Radius.full, borderWidth: 1.5, marginBottom: 2,
-  },
-})
-
-function EmptyDayState({ freeMinutes }: { freeMinutes: number }) {
-  const router = useRouter()
-  return (
-    <Card variant="highlighted" style={styles.emptyCard}>
-      <Text variant="displayMedium" color="primary" style={{ marginBottom: Spacing.sm }}>
-        Día en blanco
-      </Text>
-      <Text variant="body" color="secondary" style={{ marginBottom: Spacing.lg }}>
-        {freeMinutes < 30
-          ? 'Ya es tarde. Disfruta el descanso.'
-          : 'Añade actividades o tareas para empezar a planificar tu día.'}
-      </Text>
-      <Button
-        label="Añadir algo +"
-        variant="primary"
-        size="md"
-        onPress={() => router.push('/add')}
-      />
-    </Card>
-  )
-}
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const [checkInDone,  setCheckInDone]  = useState(false)
+  const [energy,       setEnergy]       = useState<Energy | null>(null)
   const [showDayGuide, setShowDayGuide] = useState(false)
-  const [activities,   setActivities]   = useState<ApiActivity[]>([])
-  const [tasks,        setTasks]        = useState<ApiTask[]>([])
-  const [settings,     setSettings]     = useState<ApiSettings | null>(null)
+  const [plan,         setPlan]         = useState<ApiGeneratedPlan | null>(null)
   const [loading,      setLoading]      = useState(true)
   const [doneIds,      setDoneIds]      = useState<Set<string>>(new Set())
 
@@ -261,17 +170,13 @@ export default function TodayScreen() {
   const dayName   = format(now, 'EEEE', { locale: es })
   const dayLabel  = dayName.charAt(0).toUpperCase() + dayName.slice(1)
   const dateLabel = format(now, "d 'de' MMMM", { locale: es })
-  const hour      = now.getHours()
-  const greeting  = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'
 
   const load = useCallback(async () => {
     try {
-      const [a, t, s] = await Promise.all([api.activities.list(), api.tasks.list(), api.settings.get()])
-      setActivities(a.filter(x => x.is_active))
-      setTasks(t.filter(x => x.status === 'pending'))
-      setSettings(s)
+      const data = await api.generate.plan()
+      setPlan(data)
     } catch {
-      // silent — empty state shown
+      // silent
     } finally {
       setLoading(false)
     }
@@ -279,38 +184,21 @@ export default function TodayScreen() {
 
   useFocusEffect(useCallback(() => { load() }, [load]))
 
-  const freeMinutes = minutesUntilSleep(settings)
-
-  const pendingActivities = activities.filter(a => {
-    const log = a.logs.find(l => l.date === TODAY_ISO)
-    const notDone = log?.status !== 'done'
-    const fitsInTime = a.duration_minutes <= freeMinutes
-    return notDone && fitsInTime
-  })
-
-  const pendingTasks = tasks.filter(t => t.duration_minutes <= freeMinutes)
-
-  const allItems: TodayItem[] = [
-    ...pendingActivities.map(a => ({ kind: 'activity' as const, activity: a })),
-    ...pendingTasks.map(t => ({ kind: 'task' as const, task: t })),
-  ]
-  const visibleItems = allItems.filter(i => {
-    const key = i.kind === 'activity' ? `a-${i.activity.id}` : `t-${i.task.id}`
-    return !doneIds.has(key)
-  })
-
-  const markDone = useCallback((item: TodayItem) => {
-    const key = item.kind === 'activity' ? `a-${item.activity.id}` : `t-${item.task.id}`
+  const markDone = useCallback((item: ApiGeneratedItem) => {
+    const key = `${item.kind}-${item.id}`
     setDoneIds(prev => new Set([...prev, key]))
     if (item.kind === 'activity') {
-      api.activities.log(item.activity.id, TODAY_ISO, 'done').catch(() => {})
+      api.activities.log(item.id, TODAY_ISO, 'done', item.item_id ?? undefined).catch(() => {})
     } else {
-      api.tasks.update(item.task.id, { status: 'done' }).catch(() => {})
+      api.tasks.update(item.id, { status: 'done' }).catch(() => {})
     }
   }, [])
 
-  const primaryItem = visibleItems[0] ?? null
-  const restItems   = visibleItems.slice(1)
+  const visibleItems = (plan?.items ?? []).filter(i => !doneIds.has(`${i.kind}-${i.id}`))
+  const primaryItem  = visibleItems[0] ?? null
+  const restItems    = visibleItems.slice(1)
+
+  const freeMinutes  = plan ? plan.free_minutes - plan.planned_minutes : 0
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -331,9 +219,9 @@ export default function TodayScreen() {
           </HStack>
         </View>
 
-        {!checkInDone && (
+        {!energy && (
           <View style={styles.section}>
-            <EnergyCheckIn onSubmit={() => setCheckInDone(true)} />
+            <EnergyCheckIn onSubmit={setEnergy} />
           </View>
         )}
 
@@ -343,14 +231,26 @@ export default function TodayScreen() {
           </View>
         ) : visibleItems.length === 0 ? (
           <View style={styles.section}>
-            <EmptyDayState freeMinutes={freeMinutes} />
+            <Card variant="highlighted" style={{ gap: Spacing.xs }}>
+              <Text variant="displayMedium" color="primary" style={{ marginBottom: Spacing.sm }}>
+                {plan && plan.free_minutes < 30 ? 'Hora de descansar' : 'Todo al día'}
+              </Text>
+              <Text variant="body" color="secondary" style={{ marginBottom: Spacing.lg }}>
+                {plan && plan.free_minutes < 30
+                  ? 'Ya es tarde. Disfruta el descanso.'
+                  : 'No hay nada pendiente para hoy. Añade actividades o tareas.'}
+              </Text>
+              {(!plan || plan.free_minutes >= 30) && (
+                <Button label="Añadir algo +" variant="primary" size="md" onPress={() => router.push('/add')} />
+              )}
+            </Card>
           </View>
         ) : (
           <>
             {primaryItem && (
               <View style={styles.section}>
                 <Text variant="micro" color="secondary" style={styles.sectionLabel}>AHORA</Text>
-                <TodayCard item={primaryItem} onDone={() => markDone(primaryItem)} />
+                <PrimaryCard item={primaryItem} onDone={() => markDone(primaryItem)} />
               </View>
             )}
 
@@ -359,7 +259,7 @@ export default function TodayScreen() {
                 <Text variant="micro" color="secondary" style={styles.sectionLabel}>MÁS TARDE</Text>
                 <Card padding="none">
                   {restItems.map((item, i) => {
-                    const key = item.kind === 'activity' ? `a-${item.activity.id}` : `t-${item.task.id}`
+                    const key = `${item.kind}-${item.id}-${i}`
                     return (
                       <View key={key}>
                         <AgendaRow item={item} onDone={() => markDone(item)} />
@@ -376,7 +276,7 @@ export default function TodayScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <DayGuideModal visible={showDayGuide} onClose={() => setShowDayGuide(false)} />
+      <DayGuideModal visible={showDayGuide} plan={plan} onClose={() => setShowDayGuide(false)} />
     </SafeAreaView>
   )
 }
@@ -421,11 +321,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.border,
     padding: Spacing.lg,
-    shadowColor:   '#0A0A0A',
-    shadowOffset:  { width: 2, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius:  0,
-    elevation:     2,
+    shadowColor: '#0A0A0A',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1, shadowRadius: 0, elevation: 2,
   },
   chip: {
     flex: 1,
@@ -437,15 +335,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     minHeight: 50,
   },
-  chipSelected: {
-    shadowColor:   '#0A0A0A',
-    shadowOffset:  { width: 2, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius:  0,
-    elevation:     2,
-  },
 
-  primaryCard:  { overflow: 'hidden' },
+  primaryCard: { overflow: 'hidden' },
   typeBadge: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
@@ -472,6 +363,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   stripe: { width: 4, height: 32, borderRadius: 2 },
-
-  emptyCard: { gap: Spacing.xs },
 })
