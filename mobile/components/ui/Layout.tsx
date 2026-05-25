@@ -1,8 +1,10 @@
 import { View, StyleSheet } from 'react-native'
-import { Colors, Spacing } from '@/constants/tokens'
+import { Spacing } from '@/constants/tokens'
+import { useColors } from '@/hooks/useColors'
 
 export function Divider({ style }: { style?: object }) {
-  return <View style={[styles.divider, style]} />
+  const C = useColors()
+  return <View style={[{ height: StyleSheet.hairlineWidth, backgroundColor: C.border }, style]} />
 }
 
 export function Spacer({ size = 'md' }: { size?: keyof typeof Spacing }) {
@@ -33,7 +35,3 @@ export function VStack({ children, gap = 'md', style }: {
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
-})

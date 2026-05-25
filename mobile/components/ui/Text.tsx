@@ -1,5 +1,6 @@
 import { Text as RNText, TextProps } from 'react-native'
-import { Colors, FontSize, FontWeight } from '@/constants/tokens'
+import { FontSize, FontWeight } from '@/constants/tokens'
+import { useColors } from '@/hooks/useColors'
 
 type Variant =
   | 'displayLarge' | 'displayMedium' | 'title'
@@ -26,15 +27,15 @@ const variantStyles: Record<Variant, object> = {
   micro:         { fontSize: FontSize.xs,   fontWeight: FontWeight.bold,    letterSpacing: 1 },
 }
 
-const colorMap: Record<Color, string> = {
-  primary:   Colors.textPrimary,
-  secondary: Colors.textSecondary,
-  tertiary:  Colors.textTertiary,
-  inverse:   Colors.textInverse,
-  accent:    Colors.blue,
-}
-
 export function Text({ variant = 'body', color = 'primary', customColor, style, ...props }: Props) {
+  const C = useColors()
+  const colorMap: Record<Color, string> = {
+    primary:   C.textPrimary,
+    secondary: C.textSecondary,
+    tertiary:  C.textTertiary,
+    inverse:   C.textInverse,
+    accent:    C.blue,
+  }
   return (
     <RNText
       style={[variantStyles[variant], { color: customColor ?? colorMap[color] }, style]}

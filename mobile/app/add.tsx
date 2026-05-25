@@ -3,17 +3,13 @@ import { View, ScrollView, StyleSheet, Pressable, TextInput, KeyboardAvoidingVie
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Text, Button, HStack, VStack } from '@/components/ui'
-import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
+import { Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
+import { useColors } from '@/hooks/useColors'
 import { api, ApiActivity } from '@/constants/api'
 
 type ItemType = 'activity' | 'task'
 
-const ITEM_TYPES: { key: ItemType; label: string; color: string }[] = [
-  { key: 'activity', label: 'ACTIVIDAD', color: Colors.mint },
-  { key: 'task',     label: 'TAREA',     color: Colors.indigo },
-]
-
-const DURATIONS = [10, 15, 20, 30, 45, 60, 90]
+const DURATIONS = ['10', '15', '20', '30', '45', '60', '90', '120', '180']
 
 const COLORS = [
   '#3D5AFE', '#00C896', '#FF4D30', '#FFD600',
@@ -22,7 +18,7 @@ const COLORS = [
   '#546E7A', '#FFB300', '#00897B', '#D81B60',
 ]
 
-const HABIT_TARGETS = [2, 3, 4, 5, 6, 7]
+const HABIT_TARGETS = ['1', '2', '3', '4', '5', '6', '7']
 
 function SectionLabel({ label }: { label: string }) {
   return <Text variant="micro" color="secondary" style={{ marginBottom: Spacing.sm }}>{label}</Text>
@@ -37,6 +33,7 @@ function ChipRow<T extends string>({
   getLabel: (v: T) => string
   getColor?: (v: T) => string
 }) {
+  const C = useColors()
   return (
     <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
       {options.map(opt => (
@@ -45,15 +42,16 @@ function ChipRow<T extends string>({
           onPress={() => onChange(opt)}
           style={[
             styles.chip,
+            { borderColor: C.border, backgroundColor: C.surface },
             value === opt && {
-              backgroundColor: getColor ? getColor(opt) : Colors.textPrimary,
-              borderColor: getColor ? getColor(opt) : Colors.textPrimary,
+              backgroundColor: getColor ? getColor(opt) : C.textPrimary,
+              borderColor: getColor ? getColor(opt) : C.textPrimary,
             },
           ]}
         >
           <Text
             variant="captionMedium"
-            customColor={value === opt ? Colors.textInverse : Colors.textSecondary}
+            customColor={value === opt ? C.textInverse : C.textSecondary}
           >
             {getLabel(opt)}
           </Text>
@@ -64,12 +62,18 @@ function ChipRow<T extends string>({
 }
 
 export default function AddScreen() {
+  const C = useColors()
   const router = useRouter()
+
+  const ITEM_TYPES: { key: ItemType; label: string; color: string }[] = [
+    { key: 'activity', label: 'ACTIVIDAD', color: C.mint },
+    { key: 'task',     label: 'TAREA',     color: C.indigo },
+  ]
 
   const [type,        setType]        = useState<ItemType>('activity')
   const [title,       setTitle]       = useState('')
   const [duration,    setDuration]    = useState(30)
-  const [color,       setColor]       = useState(Colors.mint)
+  const [color,       setColor]       = useState(C.mint)
   const [targetPerWk, setTargetPerWk] = useState(5)
   const [priority,    setPriority]    = useState<'high'|'medium'|'low'>('medium')
   const [activityId,  setActivityId]  = useState<number | null>(null)
@@ -105,6 +109,7 @@ export default function AddScreen() {
           activity_id: activityId,
         })
       }
+      setSaving(false)
       router.back()
     } catch (e: any) {
       setError('Error al guardar. Comprueba tu conexión.')
@@ -116,19 +121,19 @@ export default function AddScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.bg }]} edges={['top', 'bottom']}>
 
-        <HStack style={styles.header}>
+        <HStack style={[styles.header, { borderBottomColor: C.border, backgroundColor: C.bg }]}>
           <Pressable onPress={() => router.back()}>
             <Text variant="captionMedium" color="secondary">Cancelar</Text>
           </Pressable>
           <Text variant="captionMedium" color="primary">Nuevo item</Text>
           <Pressable onPress={handleSave} disabled={!canSave}>
             {saving
-              ? <ActivityIndicator size="small" color={Colors.textPrimary} />
+              ? <ActivityIndicator size="small" color={C.textPrimary} />
               : <Text
                   variant="captionMedium"
-                  customColor={canSave ? Colors.textPrimary : Colors.textTertiary}
+                  customColor={canSave ? C.textPrimary : C.textTertiary}
                   style={{ fontWeight: FontWeight.bold }}
                 >
                   Guardar
@@ -148,10 +153,11 @@ export default function AddScreen() {
                   onPress={() => { setType(t.key); setColor(t.color) }}
                   style={[
                     styles.typeChip,
+                    { borderColor: C.border, backgroundColor: C.surface },
                     type === t.key && { backgroundColor: t.color, borderColor: t.color },
                   ]}
                 >
-                  <Text variant="captionMedium" customColor={type === t.key ? '#fff' : Colors.textSecondary}>
+                  <Text variant="captionMedium" customColor={type === t.key ? '#fff' : C.textSecondary}>
                     {t.label}
                   </Text>
                 </Pressable>
@@ -161,16 +167,16 @@ export default function AddScreen() {
 
           <View style={styles.section}>
             <SectionLabel label="TÍTULO" />
-            <View style={styles.inputWrap}>
+            <View style={[styles.inputWrap, { borderColor: C.border, backgroundColor: C.surface }]}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: C.textPrimary }]}
                 value={title}
                 onChangeText={setTitle}
                 placeholder={
                   type === 'activity' ? 'Ej: Ejercicio, Lectura...' :
                                         'Ej: Preparar presentación'
                 }
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={C.textTertiary}
                 autoFocus
               />
             </View>
@@ -179,10 +185,10 @@ export default function AddScreen() {
           <View style={styles.section}>
             <SectionLabel label="DURACIÓN" />
             <ChipRow
-              options={DURATIONS as unknown as string[]}
-              value={String(duration)}
+              options={DURATIONS}
+              value={DURATIONS.includes(String(duration)) ? String(duration) : DURATIONS[0]}
               onChange={v => setDuration(Number(v))}
-              getLabel={v => `${v}m`}
+              getLabel={v => Number(v) >= 60 ? `${Number(v)/60}h` : `${v}m`}
             />
           </View>
 
@@ -190,7 +196,7 @@ export default function AddScreen() {
             <View style={styles.section}>
               <SectionLabel label="DÍAS POR SEMANA" />
               <ChipRow
-                options={HABIT_TARGETS as unknown as string[]}
+                options={HABIT_TARGETS}
                 value={String(targetPerWk)}
                 onChange={v => setTargetPerWk(Number(v))}
                 getLabel={v => v === '7' ? 'Cada día' : `${v}x`}
@@ -206,7 +212,7 @@ export default function AddScreen() {
                 value={priority}
                 onChange={setPriority}
                 getLabel={v => v === 'high' ? 'Alta' : v === 'medium' ? 'Media' : 'Baja'}
-                getColor={v => v === 'high' ? Colors.coral : v === 'medium' ? Colors.yellow : Colors.mint}
+                getColor={v => v === 'high' ? C.coral : v === 'medium' ? C.yellow : C.mint}
               />
             </View>
           )}
@@ -217,17 +223,25 @@ export default function AddScreen() {
               <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
                 <Pressable
                   onPress={() => setActivityId(null)}
-                  style={[styles.chip, activityId === null && { backgroundColor: Colors.textPrimary, borderColor: Colors.textPrimary }]}
+                  style={[
+                    styles.chip,
+                    { borderColor: C.border, backgroundColor: C.surface },
+                    activityId === null && { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
+                  ]}
                 >
-                  <Text variant="captionMedium" customColor={activityId === null ? Colors.textInverse : Colors.textSecondary}>Ninguna</Text>
+                  <Text variant="captionMedium" customColor={activityId === null ? C.textInverse : C.textSecondary}>Ninguna</Text>
                 </Pressable>
                 {activities.map(a => (
                   <Pressable
                     key={a.id}
                     onPress={() => setActivityId(a.id)}
-                    style={[styles.chip, activityId === a.id && { backgroundColor: a.color, borderColor: a.color }]}
+                    style={[
+                      styles.chip,
+                      { borderColor: C.border, backgroundColor: C.surface },
+                      activityId === a.id && { backgroundColor: a.color, borderColor: a.color },
+                    ]}
                   >
-                    <Text variant="captionMedium" customColor={activityId === a.id ? '#fff' : Colors.textSecondary}>{a.title}</Text>
+                    <Text variant="captionMedium" customColor={activityId === a.id ? '#fff' : C.textSecondary}>{a.title}</Text>
                   </Pressable>
                 ))}
               </HStack>
@@ -247,7 +261,11 @@ export default function AddScreen() {
                   <Pressable
                     key={c}
                     onPress={() => setColor(c)}
-                    style={[styles.colorDot, { backgroundColor: c }, color === c && styles.colorDotSelected]}
+                    style={[
+                      styles.colorDot,
+                      { backgroundColor: c, borderColor: C.border },
+                      color === c && { borderWidth: 2.5, borderColor: C.border },
+                    ]}
                   >
                     {color === c && <Text variant="micro" color="inverse" style={{ fontWeight: FontWeight.bold }}>✓</Text>}
                   </Pressable>
@@ -266,8 +284,8 @@ export default function AddScreen() {
                   onPress={() => setColor(c)}
                   style={[
                     styles.colorDot,
-                    { backgroundColor: c },
-                    color === c && styles.colorDotSelected,
+                    { backgroundColor: c, borderColor: C.border },
+                    color === c && { borderWidth: 2.5, borderColor: C.border },
                   ]}
                 >
                   {color === c && (
@@ -281,13 +299,13 @@ export default function AddScreen() {
 
           {error && (
             <View style={styles.section}>
-              <Text variant="caption" customColor={Colors.coral}>{error}</Text>
+              <Text variant="caption" customColor={C.coral}>{error}</Text>
             </View>
           )}
 
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { borderTopColor: C.border, backgroundColor: C.bg }]}>
           <Button
             label={saving ? 'Guardando...' : `Añadir ${currentType.label.toLowerCase()}`}
             variant="primary"
@@ -304,7 +322,7 @@ export default function AddScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: Colors.bg },
+  safe:    { flex: 1 },
   content: { paddingBottom: Spacing.xl },
 
   header: {
@@ -313,8 +331,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1.5,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.bg,
   },
 
   section: {
@@ -328,8 +344,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: Radius.md,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
   },
 
   chip: {
@@ -337,15 +351,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.full,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
   },
 
   inputWrap: {
     borderRadius: Radius.md,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
     ...Shadow.brutalSm,
   },
   input: {
@@ -353,19 +363,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     fontSize: 16,
     fontWeight: FontWeight.medium,
-    color: Colors.textPrimary,
     outline: 'none',
   } as any,
 
   colorDot: {
     width: 36, height: 36, borderRadius: 8,
-    borderWidth: 1.5, borderColor: Colors.border,
+    borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center',
-  },
-  colorDotSelected: {
-    borderWidth: 2.5,
-    borderColor: Colors.border,
-    ...Shadow.brutalSm,
   },
 
   footer: {
@@ -373,7 +377,5 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
     paddingTop: Spacing.md,
     borderTopWidth: 1.5,
-    borderTopColor: Colors.border,
-    backgroundColor: Colors.bg,
   },
 })

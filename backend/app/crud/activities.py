@@ -77,7 +77,7 @@ async def log_activity(db: AsyncSession, activity_id: int, data: ActivityLogCrea
 
 async def get_items(db: AsyncSession, activity_id: int) -> list[Item]:
     result = await db.execute(
-        select(Item).where(Item.activity_id == activity_id).order_by(Item.created_at)
+        select(Item).where(Item.activity_id == activity_id).order_by(Item.sort_order, Item.created_at)
     )
     return list(result.scalars().all())
 

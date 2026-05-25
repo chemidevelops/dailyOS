@@ -3,7 +3,11 @@ import { View, StyleSheet, Pressable, AppState } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Text, Button, VStack, HStack } from '@/components/ui'
-import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
+import { Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
+import { useColors } from '@/hooks/useColors'
+import { api } from '@/constants/api'
+
+const TODAY_ISO = new Date().toISOString().split('T')[0]
 
 type Phase = 'ready' | 'running' | 'paused' | 'done'
 
@@ -16,10 +20,8 @@ function formatTime(secs: number) {
 }
 
 function Ring({ progress, color, size = 240 }: { progress: number; color: string; size?: number }) {
+  const C = useColors()
   const stroke = 6
-  const r = (size - stroke * 2) / 2
-  const circ = 2 * Math.PI * r
-  const offset = circ * (1 - Math.max(0, Math.min(1, progress)))
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
@@ -27,7 +29,7 @@ function Ring({ progress, color, size = 240 }: { progress: number; color: string
       <View style={[StyleSheet.absoluteFill, {
         borderRadius: size / 2,
         borderWidth: stroke,
-        borderColor: Colors.surface2,
+        borderColor: C.surface2,
       }]} />
       {/* We simulate arc with a colored border overlay — simple approach for RN web */}
       <View style={[StyleSheet.absoluteFill, {
@@ -42,55 +44,111 @@ function Ring({ progress, color, size = 240 }: { progress: number; color: string
 }
 
 export default function FocusScreen() {
+  const C = useColors()
   const router = useRouter()
-  const params = useLocalSearchParams<{ title?: string; minutes?: string; color?: string }>()
+  const params = useLocalSearchParams<{ title?: string; minutes?: string; color?: string; activityId?: string; itemId?: string }>()
 
-  const title    = params.title   ?? 'Sesión de foco'
-  const minutes  = parseInt(params.minutes ?? '25')
-  const color    = params.color   ?? Colors.indigo
-  const totalSec = minutes * 60
+  const title      = params.title      ?? 'Sesión de foco'
+  const minutes    = parseInt(params.minutes ?? '25')
+  const color      = params.color      ?? C.indigo
+  const activityId = params.activityId ? parseInt(params.activityId) : null
+  const itemId     = params.itemId     ? parseInt(params.itemId) : null
+  const totalSec   = minutes * 60
 
   const [phase, setPhase]       = useState<Phase>('ready')
   const [remaining, setRemain]  = useState(totalSec)
   const intervalRef             = useRef<ReturnType<typeof setInterval> | null>(null)
+  const endTimeRef              = useRef<number | null>(null)
+  const phaseRef                = useRef<Phase>('ready')
+  const autoLoggedRef           = useRef(false)
 
+  phaseRef.current = phase
   const progress = remaining / totalSec
 
+  // Update document title while running
   useEffect(() => {
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+    if (typeof document === 'undefined') return
+    if (phase === 'running' || phase === 'paused') {
+      document.title = `${title} · ${formatTime(remaining)}`
+    } else if (phase === 'done') {
+      document.title = 'DailyOS'
+    }
+    return () => {
+      if (typeof document !== 'undefined') document.title = 'DailyOS'
+    }
+  }, [phase, remaining, title])
+
+  const handleDone = async () => {
+    if (autoLoggedRef.current) return
+    autoLoggedRef.current = true
+    if (activityId) {
+      api.activities.log(activityId, TODAY_ISO, 'done', itemId ?? undefined).catch(() => {})
+    }
+    // Show "Completado" for 2 seconds then go back
+    setTimeout(() => {
+      router.back()
+    }, 2000)
+  }
+
+  const tick = () => {
+    if (endTimeRef.current === null) return
+    const secs = Math.max(0, Math.round((endTimeRef.current - Date.now()) / 1000))
+    if (secs <= 0) {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      setPhase('done')
+      setRemain(0)
+      // Web notification
+      if (typeof document !== 'undefined' && 'Notification' in window) {
+        const show = () => new Notification(title, { body: '¡Sesión completada!' })
+        if (Notification.permission === 'granted') {
+          show()
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then(p => { if (p === 'granted') show() })
+        }
+      }
+      handleDone()
+    } else {
+      setRemain(secs)
+    }
+  }
+
+  const startInterval = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    intervalRef.current = setInterval(tick, 500)
+  }
+
+  useEffect(() => {
+    // Request notification permission at screen load
+    if (typeof document !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {})
+    }
+    const onVisible = () => {
+      if (phaseRef.current === 'running') tick()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      if (typeof document !== 'undefined') document.title = 'DailyOS'
+    }
   }, [])
 
   const start = () => {
+    endTimeRef.current = Date.now() + remaining * 1000
     setPhase('running')
-    intervalRef.current = setInterval(() => {
-      setRemain(r => {
-        if (r <= 1) {
-          clearInterval(intervalRef.current!)
-          setPhase('done')
-          return 0
-        }
-        return r - 1
-      })
-    }, 1000)
+    startInterval()
   }
 
   const pause = () => {
     setPhase('paused')
+    endTimeRef.current = null
     if (intervalRef.current) clearInterval(intervalRef.current)
   }
 
   const resume = () => {
+    endTimeRef.current = Date.now() + remaining * 1000
     setPhase('running')
-    intervalRef.current = setInterval(() => {
-      setRemain(r => {
-        if (r <= 1) {
-          clearInterval(intervalRef.current!)
-          setPhase('done')
-          return 0
-        }
-        return r - 1
-      })
-    }, 1000)
+    startInterval()
   }
 
   const stop = () => {
@@ -103,12 +161,12 @@ export default function FocusScreen() {
   const elapsedMin = Math.floor(elapsed / 60)
 
   return (
-    <View style={styles.bg}>
+    <View style={[styles.bg, { backgroundColor: C.bg }]}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
 
         {/* Header */}
         <HStack style={styles.header}>
-          <Pressable onPress={stop} style={styles.closeBtn}>
+          <Pressable onPress={stop} style={[styles.closeBtn, { borderColor: C.borderLight, backgroundColor: C.surface }]}>
             <Text variant="captionMedium" color="secondary">✕ Salir</Text>
           </Pressable>
           <View style={[styles.typeDot, { backgroundColor: color }]} />
@@ -119,7 +177,7 @@ export default function FocusScreen() {
 
           {done ? (
             <VStack gap="lg" style={{ alignItems: 'center' }}>
-              <View style={[styles.doneCircle, { borderColor: color }]}>
+              <View style={[styles.doneCircle, { borderColor: color, backgroundColor: C.surface }]}>
                 <Text style={{ fontSize: 48 }}>✓</Text>
               </View>
               <VStack gap="xs" style={{ alignItems: 'center' }}>
@@ -134,7 +192,7 @@ export default function FocusScreen() {
                 <Ring progress={progress} color={color} size={220} />
                 <View style={StyleSheet.absoluteFill as any} pointerEvents="none">
                   <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={[styles.timerText, { color: Colors.textPrimary }]}>
+                    <Text style={[styles.timerText, { color: C.textPrimary }]}>
                       {formatTime(remaining)}
                     </Text>
                     <Text variant="micro" color="tertiary" style={{ marginTop: 4 }}>
@@ -179,7 +237,7 @@ export default function FocusScreen() {
 }
 
 const styles = StyleSheet.create({
-  bg:       { flex: 1, backgroundColor: Colors.bg },
+  bg:       { flex: 1 },
   header:   {
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
@@ -191,8 +249,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     borderRadius: Radius.full,
     borderWidth: 1.5,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.surface,
   },
   typeDot: { width: 10, height: 10, borderRadius: 5 },
 
@@ -214,7 +270,6 @@ const styles = StyleSheet.create({
     width: 120, height: 120, borderRadius: 60,
     borderWidth: 3,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.surface,
     ...Shadow.brutal,
   },
 

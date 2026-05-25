@@ -1,4 +1,4 @@
-export const Colors = {
+export const LightColors = {
   bg:             '#F5F0E8',
   surface:        '#FFFFFF',
   surface2:       '#EDE8DE',
@@ -34,6 +34,46 @@ export const Colors = {
   redLight:       '#FFE5DF',
   surfaceElevated: '#EDE8DE',
 } as const
+
+export const DarkColors = {
+  bg:             '#0F0E0B',
+  surface:        '#1C1B18',
+  surface2:       '#252420',
+
+  yellow:         '#FFD600',
+  yellowLight:    '#2A2400',
+  coral:          '#FF4D30',
+  coralLight:     '#2A0D08',
+  mint:           '#00C896',
+  mintLight:      '#003D2D',
+  indigo:         '#3D5AFE',
+  indigoLight:    '#0D1640',
+  purple:         '#8B2FC9',
+  purpleLight:    '#1E0B30',
+  orange:         '#FF7700',
+  orangeLight:    '#2A1500',
+  green:          '#00C896',
+
+  textPrimary:    '#F0EAE0',
+  textSecondary:  '#A0998E',
+  textTertiary:   '#6A645C',
+  textInverse:    '#0A0A0A',
+
+  border:         '#3A3830',
+  borderLight:    '#2A2820',
+
+  // legacy compat
+  blue:           '#3D5AFE',
+  blueLight:      '#0D1640',
+  warm:           '#FF7700',
+  warmLight:      '#2A1500',
+  red:            '#FF4D30',
+  redLight:       '#2A0D08',
+  surfaceElevated: '#252420',
+} as const
+
+// Default export keeps existing imports working (light)
+export const Colors = LightColors
 
 export const Spacing = {
   xs:   4,

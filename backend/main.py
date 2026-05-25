@@ -4,7 +4,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routers import activities_router, generate_router, plans_router, settings_router, tasks_router
+from app.routers import (
+    activities_router, generate_router, plans_router, settings_router, tasks_router,
+    categories_router, backlog_router, schedule_router, search_router, stats_router,
+)
 
 
 @asynccontextmanager
@@ -34,6 +37,11 @@ app.include_router(tasks_router,      prefix=API_PREFIX)
 app.include_router(plans_router,      prefix=API_PREFIX)
 app.include_router(settings_router,   prefix=API_PREFIX)
 app.include_router(generate_router,   prefix=API_PREFIX)
+app.include_router(categories_router, prefix=API_PREFIX)
+app.include_router(backlog_router,    prefix=API_PREFIX)
+app.include_router(schedule_router,   prefix=API_PREFIX)
+app.include_router(search_router,     prefix=API_PREFIX)
+app.include_router(stats_router,      prefix=API_PREFIX)
 
 
 @app.get("/health", tags=["meta"])

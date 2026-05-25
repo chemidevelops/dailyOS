@@ -17,4 +17,7 @@ class UserSettings(Base):
     sleep_start: Mapped[str] = mapped_column(String(5), default="23:00")
     sleep_end: Mapped[str] = mapped_column(String(5), default="07:30")
     onboarding_done: Mapped[bool] = mapped_column(Boolean, default=False)
+    max_fill_pct: Mapped[int] = mapped_column(Integer, default=80)  # % of free time to fill
+    plan_order: Mapped[str | None] = mapped_column(String(1000), nullable=True, default=None)  # JSON array of "kind-id"
+    vacation_dates: Mapped[str | None] = mapped_column(String(2000), nullable=True, default=None)  # JSON array of ISO date strings
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)

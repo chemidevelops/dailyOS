@@ -3,20 +3,23 @@ import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'reac
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { Text, Card, HStack, VStack, Divider } from '@/components/ui'
-import { Colors, Spacing, Radius, FontWeight } from '@/constants/tokens'
+import { Spacing, Radius, FontWeight } from '@/constants/tokens'
+import { useColors } from '@/hooks/useColors'
 import { api, ApiActivity } from '@/constants/api'
 
-const DAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
-const TODAY      = new Date().getDay()
+const DAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 const TODAY_ISO  = new Date().toISOString().split('T')[0]
+// ISO week index: Mon=0 … Sun=6
+const TODAY      = (new Date().getDay() + 6) % 7
 
 function getWeekDates(): string[] {
   const now  = new Date()
   const day  = now.getDay()
+  const mondayOffset = day === 0 ? -6 : 1 - day
   const dates: string[] = []
   for (let i = 0; i < 7; i++) {
     const d = new Date(now)
-    d.setDate(now.getDate() - day + i)
+    d.setDate(now.getDate() + mondayOffset + i)
     dates.push(d.toISOString().split('T')[0])
   }
   return dates
@@ -34,6 +37,7 @@ function activityWeekDays(activity: ApiActivity): DayStatus[] {
 }
 
 function WeekDots({ days, color }: { days: DayStatus[]; color: string }) {
+  const C = useColors()
   return (
     <HStack gap="xs" style={{ alignItems: 'center' }}>
       {days.map((status, i) => {
@@ -41,16 +45,16 @@ function WeekDots({ days, color }: { days: DayStatus[]; color: string }) {
         const bg =
           status === 'done'    ? color :
           status === 'future'  ? 'transparent' :
-          status === 'skipped' ? Colors.surface2 : Colors.surface
+          status === 'skipped' ? C.surface2 : C.surface
 
         return (
           <View key={i} style={[
             styles.dot,
-            { backgroundColor: bg, borderColor: isToday ? Colors.border : status === 'done' ? color : Colors.borderLight },
-            isToday && styles.dotToday,
+            { backgroundColor: bg, borderColor: isToday ? C.border : status === 'done' ? color : C.borderLight },
+            isToday && { borderWidth: 2, borderColor: C.border },
           ]}>
             {status === 'skipped' && (
-              <View style={[styles.dotSlash, { backgroundColor: Colors.textTertiary }]} />
+              <View style={[styles.dotSlash, { backgroundColor: C.textTertiary }]} />
             )}
           </View>
         )
@@ -59,17 +63,39 @@ function WeekDots({ days, color }: { days: DayStatus[]; color: string }) {
   )
 }
 
+function calcCurrentStreak(activity: ApiActivity): number {
+  let streak = 0
+  const cursor = new Date()
+  const todayLog = activity.logs.find(l => l.date === TODAY_ISO)
+  if (todayLog?.status !== 'done') {
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  for (let i = 0; i < 365; i++) {
+    const date = cursor.toISOString().split('T')[0]
+    const log = activity.logs.find(l => l.date === date)
+    if (log?.status === 'done') {
+      streak++
+      cursor.setDate(cursor.getDate() - 1)
+    } else {
+      break
+    }
+  }
+  return streak
+}
+
 function ActivityCard({ activity, onToggle, onPress }: {
   activity: ApiActivity
   onToggle: (id: number) => void
   onPress: (id: number) => void
 }) {
+  const C = useColors()
   const weekDays  = activityWeekDays(activity)
   const todayLog  = activity.logs.find(l => l.date === TODAY_ISO)
   const isDone    = todayLog?.status === 'done'
   const doneDays  = weekDays.filter(s => s === 'done').length
   const progress  = Math.round((doneDays / activity.target_per_week) * 100)
   const activeItem = activity.items.find(i => i.status === 'active')
+  const streak     = calcCurrentStreak(activity)
 
   return (
     <Pressable onPress={() => onPress(activity.id)} style={styles.activityCard}>
@@ -87,11 +113,17 @@ function ActivityCard({ activity, onToggle, onPress }: {
               <Text variant="micro" color="secondary">· {activeItem.title}</Text>
             )}
           </HStack>
+          {streak > 1 && (
+            <HStack gap="xs" style={{ alignItems: 'center', marginLeft: Spacing.sm + 10, marginTop: 2 }}>
+              <Text variant="micro" color="secondary">🔥 {streak} días seguidos</Text>
+            </HStack>
+          )}
         </VStack>
 
         <Pressable onPress={() => onToggle(activity.id)} hitSlop={10}>
           <View style={[
             styles.checkBox,
+            { borderColor: C.border, backgroundColor: C.surface },
             isDone && { backgroundColor: activity.color, borderColor: activity.color },
           ]}>
             {isDone && <Text variant="caption" color="inverse" style={{ fontWeight: FontWeight.bold }}>✓</Text>}
@@ -99,7 +131,7 @@ function ActivityCard({ activity, onToggle, onPress }: {
         </Pressable>
       </HStack>
 
-      <View style={styles.progressTrack}>
+      <View style={[styles.progressTrack, { backgroundColor: C.surface2 }]}>
         <View style={[styles.progressFill, { width: `${Math.min(progress, 100)}%`, backgroundColor: activity.color }]} />
       </View>
 
@@ -112,9 +144,10 @@ function ActivityCard({ activity, onToggle, onPress }: {
 }
 
 function StatsBar({ activities }: { activities: ApiActivity[] }) {
-  const weekDays   = activities.map(a => activityWeekDays(a))
-  const todayDone  = weekDays.filter(d => d[TODAY] === 'done').length
-  const totalDone  = weekDays.flat().filter(s => s === 'done').length
+  const C = useColors()
+  const weekDays    = activities.map(a => activityWeekDays(a))
+  const todayDone   = weekDays.filter(d => d[TODAY] === 'done').length
+  const totalDone   = weekDays.flat().filter(s => s === 'done').length
   const totalTarget = activities.reduce((s, a) => s + a.target_per_week, 0)
 
   return (
@@ -124,7 +157,7 @@ function StatsBar({ activities }: { activities: ApiActivity[] }) {
           <Text variant="displayMedium" color="primary">{todayDone}/{activities.length}</Text>
           <Text variant="micro" color="secondary">HOY</Text>
         </VStack>
-        <View style={styles.statDivider} />
+        <View style={[styles.statDivider, { backgroundColor: C.border }]} />
         <VStack gap="xs" style={{ alignItems: 'center' }}>
           <Text variant="displayMedium" color="primary">{totalDone}/{totalTarget}</Text>
           <Text variant="micro" color="secondary">SEMANA</Text>
@@ -146,6 +179,7 @@ function EmptyState() {
 }
 
 export default function ActivitiesScreen() {
+  const C = useColors()
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const [activities, setActivities] = useState<ApiActivity[]>([])
@@ -203,20 +237,28 @@ export default function ActivitiesScreen() {
   })
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.bg }]} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
 
         <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16 }]}>
-          <Text variant="displayLarge" color="primary">Actividades</Text>
-          <Text variant="body" color="secondary">
-            {new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })
-              .replace(/^./, c => c.toUpperCase())}
-          </Text>
+          <HStack style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <VStack gap="xs">
+              <Text variant="displayLarge" color="primary">Actividades</Text>
+              <Text variant="body" color="secondary">
+                {new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })
+                  .replace(/^./, c => c.toUpperCase())}
+              </Text>
+            </VStack>
+            <Pressable onPress={() => router.push('/add')}
+              style={[styles.addBtn, { borderColor: C.border, backgroundColor: C.yellow }]}>
+              <Text variant="title" color="primary" style={{ lineHeight: 24 }}>+</Text>
+            </Pressable>
+          </HStack>
         </View>
 
         {loading ? (
           <View style={styles.emptyWrap}>
-            <ActivityIndicator size="large" color={Colors.textPrimary} />
+            <ActivityIndicator size="large" color={C.textPrimary} />
           </View>
         ) : error ? (
           <View style={styles.emptyWrap}>
@@ -267,7 +309,7 @@ export default function ActivitiesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: Colors.bg },
+  safe:    { flex: 1 },
   content: { flexGrow: 1 },
 
   header: {
@@ -276,6 +318,16 @@ const styles = StyleSheet.create({
   },
   section:      { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },
   sectionLabel: { marginBottom: Spacing.sm },
+
+  addBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 1.5,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: Spacing.xs,
+    shadowColor: '#0A0A0A',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1, shadowRadius: 0, elevation: 2,
+  },
 
   emptyWrap: {
     flex: 1,
@@ -295,14 +347,12 @@ const styles = StyleSheet.create({
   },
   checkBox: {
     width: 32, height: 32, borderRadius: Radius.sm,
-    borderWidth: 1.5, borderColor: Colors.border,
+    borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.surface,
   },
 
   progressTrack: {
     height: 4, borderRadius: 2,
-    backgroundColor: Colors.surface2,
     marginTop: Spacing.md,
     marginLeft: Spacing.sm + 10,
     overflow: 'hidden',
@@ -317,10 +367,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
-  dotToday: {
-    borderWidth: 2,
-    borderColor: Colors.border,
-  },
   dotSlash: {
     width: '130%', height: 1.5,
     transform: [{ rotate: '45deg' }],
@@ -328,7 +374,6 @@ const styles = StyleSheet.create({
 
   statDivider: {
     width: 1.5, height: 36,
-    backgroundColor: Colors.border,
     opacity: 0.2,
   },
 })

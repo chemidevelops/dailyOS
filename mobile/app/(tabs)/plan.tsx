@@ -1,19 +1,34 @@
 import { useState, useCallback, useEffect } from 'react'
-import { View, ScrollView, StyleSheet, ActivityIndicator, Pressable } from 'react-native'
+import { View, ScrollView, StyleSheet, ActivityIndicator, Pressable, Alert } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { Text, Card, HStack, VStack } from '@/components/ui'
-import { Colors, Spacing, Radius, FontWeight } from '@/constants/tokens'
+import { Spacing, Radius, FontWeight } from '@/constants/tokens'
+import { useColors } from '@/hooks/useColors'
 import { api, ApiGeneratedPlan, ApiGeneratedItem } from '@/constants/api'
 
 const KIND_LABEL: Record<string, string> = {
   activity: 'ACTIVIDAD', task: 'TAREA',
 }
-const KIND_COLOR: Record<string, string> = {
-  activity: Colors.mint, task: Colors.indigo,
-}
 
-function PlanItem({ item }: { item: ApiGeneratedItem }) {
+function PlanItem({ item, index, total, onDelete, onMove }: {
+  item: ApiGeneratedItem
+  index: number
+  total: number
+  onDelete: (item: ApiGeneratedItem) => void
+  onMove: (index: number, direction: -1 | 1) => void
+}) {
+  const C = useColors()
+  const kindColor = item.kind === 'activity' ? C.mint : C.indigo
+
+  const confirmDelete = () => {
+    const label = item.kind === 'task' ? 'tarea' : 'actividad'
+    Alert.alert(`Borrar ${label}`, `¿Borrar "${item.title}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Borrar', style: 'destructive', onPress: () => onDelete(item) },
+    ])
+  }
+
   return (
     <HStack style={styles.planRow} gap="md">
       <View style={styles.timeCol}>
@@ -30,8 +45,8 @@ function PlanItem({ item }: { item: ApiGeneratedItem }) {
       <View style={[styles.stripe, { backgroundColor: item.color }]} />
 
       <VStack gap="xs" style={{ flex: 1 }}>
-        <View style={[styles.kindBadge, { backgroundColor: KIND_COLOR[item.kind] + '25', borderColor: KIND_COLOR[item.kind] }]}>
-          <Text variant="micro" customColor={KIND_COLOR[item.kind]}>{KIND_LABEL[item.kind]}</Text>
+        <View style={[styles.kindBadge, { backgroundColor: kindColor + '25', borderColor: kindColor }]}>
+          <Text variant="micro" customColor={kindColor}>{KIND_LABEL[item.kind]}</Text>
         </View>
         <Text variant="bodyMedium" color="primary" numberOfLines={2}>{item.title}</Text>
         {item.activity_title && (
@@ -40,11 +55,27 @@ function PlanItem({ item }: { item: ApiGeneratedItem }) {
       </VStack>
 
       <Text variant="micro" color="tertiary">{item.duration_minutes}m</Text>
+
+      <VStack gap="xs" style={{ alignItems: 'center' }}>
+        <Pressable onPress={() => onMove(index, -1)} hitSlop={8} disabled={index === 0}
+          style={{ opacity: index === 0 ? 0.2 : 1 }}>
+          <Text variant="micro" color="tertiary">▲</Text>
+        </Pressable>
+        <Pressable onPress={() => onMove(index, 1)} hitSlop={8} disabled={index === total - 1}
+          style={{ opacity: index === total - 1 ? 0.2 : 1 }}>
+          <Text variant="micro" color="tertiary">▼</Text>
+        </Pressable>
+      </VStack>
+
+      <Pressable onPress={confirmDelete} hitSlop={12}>
+        <Text variant="body" customColor={C.textTertiary}>×</Text>
+      </Pressable>
     </HStack>
   )
 }
 
 function CapacityBar({ plan }: { plan: ApiGeneratedPlan }) {
+  const C = useColors()
   const pct   = plan.free_minutes > 0 ? Math.round((plan.planned_minutes / plan.free_minutes) * 100) : 0
   const freeH = Math.floor(plan.free_minutes / 60)
   const freeM = plan.free_minutes % 60
@@ -63,8 +94,8 @@ function CapacityBar({ plan }: { plan: ApiGeneratedPlan }) {
           <Text variant="micro" color="secondary">TIEMPO LIBRE</Text>
         </VStack>
       </HStack>
-      <View style={styles.barTrack}>
-        <View style={[styles.barFill, { width: `${Math.min(pct, 100)}%` }]} />
+      <View style={[styles.barTrack, { backgroundColor: C.border }]}>
+        <View style={[styles.barFill, { width: `${Math.min(pct, 100)}%`, backgroundColor: C.textPrimary }]} />
       </View>
       {plan.work_end && (
         <Text variant="micro" color="secondary" style={{ marginTop: Spacing.sm }}>
@@ -100,8 +131,9 @@ function dayLabel(offset: number): string {
 }
 
 export default function PlanScreen() {
+  const C = useColors()
   const insets  = useSafeAreaInsets()
-  const [offset,  setOffset]  = useState(0)  // 0 = today, 1 = tomorrow
+  const [offset,  setOffset]  = useState(0)
   const [plan,    setPlan]    = useState<ApiGeneratedPlan | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
@@ -119,12 +151,38 @@ export default function PlanScreen() {
     }
   }, [])
 
-  useFocusEffect(useCallback(() => { load(offset) }, [load, offset]))
+  const handleDelete = async (item: ApiGeneratedItem) => {
+    setPlan(prev => prev ? { ...prev, items: prev.items.filter(i => !(i.id === item.id && i.kind === item.kind)) } : prev)
+    try {
+      if (item.kind === 'task') {
+        await api.tasks.delete(item.id)
+      } else {
+        await api.activities.update(item.id, { is_active: false })
+      }
+    } catch {
+      load(offset)
+    }
+  }
 
+  const handleMove = async (index: number, direction: -1 | 1) => {
+    if (!plan) return
+    const newItems = [...plan.items]
+    const swapIdx = index + direction
+    if (swapIdx < 0 || swapIdx >= newItems.length) return
+    ;[newItems[index], newItems[swapIdx]] = [newItems[swapIdx], newItems[index]]
+    // Recalculate start/end times
+    let cursor = plan.free_minutes  // doesn't matter for display, backend recalculates
+    setPlan(prev => prev ? { ...prev, items: newItems } : prev)
+    // Persist order
+    const order = newItems.map(i => `${i.kind}-${i.id}`)
+    api.settings.update({ plan_order: JSON.stringify(order) }).catch(() => {})
+  }
+
+  useFocusEffect(useCallback(() => { load(offset) }, [load, offset]))
   useEffect(() => { load(offset) }, [offset])
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.bg }]} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
 
         <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 16 }]}>
@@ -132,14 +190,14 @@ export default function PlanScreen() {
             <Text variant="displayLarge" color="primary">{offset === 0 ? 'Plan' : 'Mañana'}</Text>
             <Text variant="body" color="secondary">{dayLabel(offset)}</Text>
           </View>
-          <HStack gap="xs" style={styles.dayToggle}>
+          <HStack gap="xs" style={[styles.dayToggle, { backgroundColor: C.surface, borderColor: C.border }]}>
             {[{ label: 'HOY', val: 0 }, { label: 'MAÑANA', val: 1 }].map(({ label, val }) => (
               <Pressable
                 key={val}
                 onPress={() => setOffset(val)}
-                style={[styles.toggleChip, offset === val && styles.toggleChipActive]}
+                style={[styles.toggleChip, offset === val && { backgroundColor: C.textPrimary }]}
               >
-                <Text variant="micro" customColor={offset === val ? Colors.textInverse : Colors.textSecondary}
+                <Text variant="micro" customColor={offset === val ? C.textInverse : C.textSecondary}
                   style={offset === val ? { fontWeight: FontWeight.bold } : undefined}>
                   {label}
                 </Text>
@@ -150,7 +208,7 @@ export default function PlanScreen() {
 
         {loading ? (
           <View style={styles.emptyWrap}>
-            <ActivityIndicator size="large" color={Colors.textPrimary} />
+            <ActivityIndicator size="large" color={C.textPrimary} />
           </View>
         ) : error ? (
           <View style={styles.emptyWrap}>
@@ -175,7 +233,7 @@ export default function PlanScreen() {
                       <Text variant="captionMedium" color="primary">{plan.work_start}</Text>
                       <Text variant="micro" color="tertiary">{plan.work_end}</Text>
                     </View>
-                    <View style={[styles.stripe, { backgroundColor: Colors.border }]} />
+                    <View style={[styles.stripe, { backgroundColor: C.border }]} />
                     <Text variant="bodyMedium" color="tertiary" style={{ flex: 1 }}>Trabajo</Text>
                   </HStack>
                 </Card>
@@ -187,12 +245,12 @@ export default function PlanScreen() {
               <Card padding="none">
                 {plan.items.map((item, i) => (
                   <View key={`${item.kind}-${item.id}`}>
-                    <PlanItem item={item} />
-                    {i < plan.items.length - 1 && <View style={styles.divider} />}
-                </View>
-              ))}
-            </Card>
-          </View>
+                    <PlanItem item={item} index={i} total={plan.items.length} onDelete={handleDelete} onMove={handleMove} />
+                    {i < plan.items.length - 1 && <View style={[styles.divider, { backgroundColor: C.border }]} />}
+                  </View>
+                ))}
+              </Card>
+            </View>
           </>
         )}
 
@@ -203,7 +261,7 @@ export default function PlanScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: Colors.bg },
+  safe:    { flex: 1 },
   content: { flexGrow: 1 },
 
   header: {
@@ -215,19 +273,14 @@ const styles = StyleSheet.create({
   },
   dayToggle: {
     marginTop: Spacing.xs,
-    backgroundColor: Colors.surface,
     borderRadius: Radius.full,
     borderWidth: 1.5,
-    borderColor: Colors.border,
     padding: 3,
   },
   toggleChip: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: Radius.full,
-  },
-  toggleChipActive: {
-    backgroundColor: Colors.textPrimary,
   },
   section:      { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },
   sectionLabel: { marginBottom: Spacing.sm },
@@ -242,12 +295,10 @@ const styles = StyleSheet.create({
 
   barTrack: {
     height: 8, borderRadius: 4,
-    backgroundColor: Colors.border,
     overflow: 'hidden',
   },
   barFill: {
     height: '100%', borderRadius: 4,
-    backgroundColor: Colors.textPrimary,
   },
 
   planRow: {
@@ -272,7 +323,6 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1.5,
-    backgroundColor: Colors.border,
     opacity: 0.15,
     marginHorizontal: Spacing.lg,
   },

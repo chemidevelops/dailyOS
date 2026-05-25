@@ -13,18 +13,7 @@ async function request<T>(path: string, opts?: RequestInit): Promise<T> {
   return res.json()
 }
 
-// ─── Activity ────────────────────────────────────────────────────────────────
-
-export type ApiItem = {
-  id: number
-  activity_id: number
-  title: string
-  status: 'active' | 'pending' | 'done' | 'dropped'
-  progress: number
-  progress_label: string | null
-  notes: string | null
-  rating: number | null
-}
+// ─── Activities ───────────────────────────────────────────────────────────────
 
 export type ApiActivityLog = {
   id: number
@@ -34,57 +23,61 @@ export type ApiActivityLog = {
   status: string
 }
 
+export type ApiItem = {
+  id: number
+  activity_id: number
+  title: string
+  status: string
+  sort_order: number
+  created_at: string
+}
+
 export type ApiActivity = {
   id: number
   title: string
   color: string
-  target_per_week: number
   duration_minutes: number
+  target_per_week: number
   is_active: boolean
   logs: ApiActivityLog[]
   items: ApiItem[]
 }
 
-export type ApiActivityCreate = {
+// ─── Generated plan ───────────────────────────────────────────────────────────
+
+export type ApiGeneratedItem = {
+  id: number
+  kind: string
   title: string
+  activity_title: string | null
+  item_id: number | null
   color: string
-  target_per_week: number
   duration_minutes: number
+  start_time: string | null
+  end_time: string | null
+  next_item_title: string | null
 }
 
-export type ApiItemCreate = {
-  activity_id: number
-  title: string
-  status?: string
+export type ApiGeneratedPlan = {
+  date: string
+  free_minutes: number
+  planned_minutes: number
+  work_start: string
+  work_end: string
+  items: ApiGeneratedItem[]
+  is_vacation: boolean
 }
 
-export type ApiItemUpdate = {
-  title?: string
-  status?: string
-  progress?: number
-  progress_label?: string
-  notes?: string
-  rating?: number
-}
-
-// ─── Task ─────────────────────────────────────────────────────────────────────
+// ─── Tasks ────────────────────────────────────────────────────────────────────
 
 export type ApiTask = {
   id: number
   title: string
-  color: string
-  priority: 'high' | 'medium' | 'low'
-  duration_minutes: number
-  status: 'pending' | 'done' | 'deferred'
-  activity_id: number | null
-}
-
-export type ApiTaskCreate = {
-  title: string
-  color: string
+  status: string
   priority: string
   duration_minutes: number
-  activity_id?: number | null
+  color: string
+  created_at: string
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -95,31 +88,10 @@ export type ApiSettings = {
   work_end: string
   work_days: string
   sleep_start: string
-  sleep_end: string
   onboarding_done: boolean
-}
-
-// ─── Generated Plan ───────────────────────────────────────────────────────────
-
-export type ApiGeneratedItem = {
-  id: number
-  kind: 'activity' | 'task'
-  title: string
-  activity_title: string | null
-  item_id: number | null
-  color: string
-  duration_minutes: number
-  start_time: string | null
-  end_time: string | null
-}
-
-export type ApiGeneratedPlan = {
-  date: string
-  free_minutes: number
-  planned_minutes: number
-  work_start: string
-  work_end: string
-  items: ApiGeneratedItem[]
+  plan_order: string | null
+  vacation_dates: string | null
+  max_fill_pct: number
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -127,28 +99,34 @@ export type ApiGeneratedPlan = {
 export const api = {
   activities: {
     list:   () => request<ApiActivity[]>('/activities'),
-    create: (body: ApiActivityCreate) => request<ApiActivity>('/activities', { method: 'POST', body: JSON.stringify(body) }),
-    update: (id: number, body: Partial<ApiActivityCreate & { is_active: boolean }>) =>
+    update: (id: number, body: Partial<ApiActivity>) =>
       request<ApiActivity>(`/activities/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    log: (id: number, date: string, status: string, item_id?: number | null) =>
+    delete: (id: number) => request<void>(`/activities/${id}`, { method: 'DELETE' }),
+    log: (id: number, date: string, status: string, itemId?: number) =>
       request<ApiActivityLog>(`/activities/${id}/log`, {
         method: 'POST',
-        body: JSON.stringify({ date, status, item_id }),
+        body: JSON.stringify({ date, status, item_id: itemId ?? null }),
       }),
   },
   items: {
-    create: (activity_id: number, body: ApiItemCreate) =>
-      request<ApiItem>(`/activities/${activity_id}/items`, { method: 'POST', body: JSON.stringify(body) }),
-    update: (item_id: number, body: ApiItemUpdate) =>
-      request<ApiItem>(`/activities/items/${item_id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    delete: (item_id: number) =>
-      request<void>(`/activities/items/${item_id}`, { method: 'DELETE' }),
+    create: (activityId: number, title: string) =>
+      request<ApiItem>(`/activities/${activityId}/items`, {
+        method: 'POST',
+        body: JSON.stringify({ activity_id: activityId, title }),
+      }),
+    update: (itemId: number, body: Partial<ApiItem>) =>
+      request<ApiItem>(`/activities/items/${itemId}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (itemId: number) => request<void>(`/activities/items/${itemId}`, { method: 'DELETE' }),
+    reorder: (activityId: number, order: number[]) =>
+      request<void>(`/activities/${activityId}/items/reorder`, { method: 'PUT', body: JSON.stringify({ order }) }),
   },
   tasks: {
     list:   () => request<ApiTask[]>('/tasks'),
-    create: (body: ApiTaskCreate) => request<ApiTask>('/tasks', { method: 'POST', body: JSON.stringify(body) }),
-    update: (id: number, body: { status?: string }) =>
+    create: (body: Partial<ApiTask>) =>
+      request<ApiTask>('/tasks', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: number, body: Partial<ApiTask>) =>
       request<ApiTask>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (id: number) => request<void>(`/tasks/${id}`, { method: 'DELETE' }),
   },
   settings: {
     get:    () => request<ApiSettings>('/settings'),
@@ -156,11 +134,13 @@ export const api = {
       request<ApiSettings>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
   },
   generate: {
-    plan: (date?: string) => {
+    plan: (date?: string, energy?: string, fillPct?: number) => {
       const now = new Date()
       const localTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       const params = new URLSearchParams({ now: localTime })
-      if (date) params.set('date', date)
+      if (date)    params.set('date', date)
+      if (energy)  params.set('energy', energy)
+      if (fillPct) params.set('fill_pct', String(fillPct))
       return request<ApiGeneratedPlan>(`/generate?${params}`)
     },
   },

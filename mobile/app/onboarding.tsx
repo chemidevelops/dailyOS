@@ -3,7 +3,8 @@ import { View, ScrollView, StyleSheet, Pressable, TextInput, KeyboardAvoidingVie
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Text, Button, HStack, VStack, Card } from '@/components/ui'
-import { Colors, Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
+import { Spacing, Radius, Shadow, FontWeight } from '@/constants/tokens'
+import { useColors } from '@/hooks/useColors'
 import { api } from '@/constants/api'
 
 // ─── Shared ──────────────────────────────────────────────────────────────────
@@ -17,6 +18,7 @@ function ChipRow<T extends string>({
   getLabel: (v: T) => string
   getColor?: (v: T) => string
 }) {
+  const C = useColors()
   return (
     <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
       {options.map(opt => (
@@ -25,13 +27,14 @@ function ChipRow<T extends string>({
           onPress={() => onChange(opt)}
           style={[
             styles.chip,
+            { borderColor: C.border, backgroundColor: C.surface },
             value === String(opt) && {
-              backgroundColor: getColor ? getColor(opt) : Colors.textPrimary,
-              borderColor: getColor ? getColor(opt) : Colors.textPrimary,
+              backgroundColor: getColor ? getColor(opt) : C.textPrimary,
+              borderColor: getColor ? getColor(opt) : C.textPrimary,
             },
           ]}
         >
-          <Text variant="captionMedium" customColor={value === String(opt) ? Colors.textInverse : Colors.textSecondary}>
+          <Text variant="captionMedium" customColor={value === String(opt) ? C.textInverse : C.textSecondary}>
             {getLabel(opt)}
           </Text>
         </Pressable>
@@ -41,6 +44,7 @@ function ChipRow<T extends string>({
 }
 
 function ProgressBar({ step, total }: { step: number; total: number }) {
+  const C = useColors()
   return (
     <HStack gap="sm" style={{ marginBottom: Spacing.xl }}>
       {Array.from({ length: total }).map((_, i) => (
@@ -48,7 +52,7 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
           key={i}
           style={[
             styles.progressSegment,
-            { backgroundColor: i < step ? Colors.textPrimary : Colors.border },
+            { backgroundColor: i < step ? C.textPrimary : C.border },
           ]}
         />
       ))}
@@ -63,6 +67,7 @@ const END_HOURS = ['16:00','16:30','17:00','17:30','18:00','18:30','19:00','20:0
 const SLEEP_HOURS = ['21:00','22:00','22:30','23:00','23:30','00:00','01:00','02:00']
 
 function StepSchedule({ onNext }: { onNext: (workStart: string, workEnd: string, sleepStart: string) => void }) {
+  const C = useColors()
   const [workStart,  setWorkStart]  = useState('09:00')
   const [workEnd,    setWorkEnd]    = useState('17:30')
   const [sleepStart, setSleepStart] = useState('23:00')
@@ -94,9 +99,13 @@ function StepSchedule({ onNext }: { onNext: (workStart: string, workEnd: string,
                 <Pressable
                   key={h}
                   onPress={() => setWorkStart(h)}
-                  style={[styles.chip, workStart === h && styles.chipSelected]}
+                  style={[
+                    styles.chip,
+                    { borderColor: C.border, backgroundColor: C.surface },
+                    workStart === h && { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
+                  ]}
                 >
-                  <Text variant="captionMedium" customColor={workStart === h ? Colors.textInverse : Colors.textSecondary}>{h}</Text>
+                  <Text variant="captionMedium" customColor={workStart === h ? C.textInverse : C.textSecondary}>{h}</Text>
                 </Pressable>
               ))}
             </HStack>
@@ -109,9 +118,13 @@ function StepSchedule({ onNext }: { onNext: (workStart: string, workEnd: string,
                 <Pressable
                   key={h}
                   onPress={() => setWorkEnd(h)}
-                  style={[styles.chip, workEnd === h && styles.chipSelected]}
+                  style={[
+                    styles.chip,
+                    { borderColor: C.border, backgroundColor: C.surface },
+                    workEnd === h && { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
+                  ]}
                 >
-                  <Text variant="captionMedium" customColor={workEnd === h ? Colors.textInverse : Colors.textSecondary}>{h}</Text>
+                  <Text variant="captionMedium" customColor={workEnd === h ? C.textInverse : C.textSecondary}>{h}</Text>
                 </Pressable>
               ))}
             </HStack>
@@ -126,9 +139,13 @@ function StepSchedule({ onNext }: { onNext: (workStart: string, workEnd: string,
             <Pressable
               key={h}
               onPress={() => setSleepStart(h)}
-              style={[styles.chip, sleepStart === h && styles.chipSelected]}
+              style={[
+                styles.chip,
+                { borderColor: C.border, backgroundColor: C.surface },
+                sleepStart === h && { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
+              ]}
             >
-              <Text variant="captionMedium" customColor={sleepStart === h ? Colors.textInverse : Colors.textSecondary}>{h}</Text>
+              <Text variant="captionMedium" customColor={sleepStart === h ? C.textInverse : C.textSecondary}>{h}</Text>
             </Pressable>
           ))}
         </HStack>
@@ -176,6 +193,7 @@ function HabitDraftCard({ habit, onRemove }: { habit: HabitDraft; onRemove: () =
 }
 
 function StepHabits({ onNext, onBack }: { onNext: (habits: HabitDraft[]) => void; onBack: () => void }) {
+  const C = useColors()
   const [habits,   setHabits]   = useState<HabitDraft[]>([])
   const [title,    setTitle]    = useState('')
   const [color,    setColor]    = useState(COLORS[0])
@@ -205,13 +223,13 @@ function StepHabits({ onNext, onBack }: { onNext: (habits: HabitDraft[]) => void
 
       <Card style={styles.section}>
         <Text variant="micro" color="secondary" style={styles.label}>NOMBRE</Text>
-        <View style={styles.inputWrap}>
+        <View style={[styles.inputWrap, { borderColor: C.border, backgroundColor: C.surface }]}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: C.textPrimary }]}
             value={title}
             onChangeText={setTitle}
             placeholder="Ej: Estudiar japonés, Correr..."
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={C.textTertiary}
             returnKeyType="done"
             onSubmitEditing={addHabit}
           />
@@ -236,7 +254,15 @@ function StepHabits({ onNext, onBack }: { onNext: (habits: HabitDraft[]) => void
         <Text variant="micro" color="secondary" style={[styles.label, { marginTop: Spacing.md }]}>COLOR</Text>
         <HStack gap="sm">
           {COLORS.map(c => (
-            <Pressable key={c} onPress={() => setColor(c)} style={[styles.colorDot, { backgroundColor: c }, color === c && styles.colorDotSelected]}>
+            <Pressable
+              key={c}
+              onPress={() => setColor(c)}
+              style={[
+                styles.colorDot,
+                { backgroundColor: c, borderColor: C.border },
+                color === c && { borderWidth: 2.5, borderColor: C.border },
+              ]}
+            >
               {color === c && <Text variant="micro" color="inverse">✓</Text>}
             </Pressable>
           ))}
@@ -271,8 +297,9 @@ function StepHabits({ onNext, onBack }: { onNext: (habits: HabitDraft[]) => void
 type LeisureDraft = { title: string; status: 'playing' | 'pending'; habitIndex: number | null }
 
 function LeisureDraftCard({ item, habits, onRemove }: { item: LeisureDraft; habits: HabitDraft[]; onRemove: () => void }) {
+  const C = useColors()
   const habitLabel = item.habitIndex !== null ? habits[item.habitIndex]?.title : null
-  const habitColor = item.habitIndex !== null ? habits[item.habitIndex]?.color : Colors.border
+  const habitColor = item.habitIndex !== null ? habits[item.habitIndex]?.color : C.border
   return (
     <HStack style={styles.draftCard} gap="md">
       <View style={[styles.draftColor, { backgroundColor: habitColor }]} />
@@ -296,6 +323,7 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
   saving: boolean
   habits: HabitDraft[]
 }) {
+  const C = useColors()
   const [items,      setItems]      = useState<LeisureDraft[]>([])
   const [title,      setTitle]      = useState('')
   const [status,     setStatus]     = useState<'playing'|'pending'>('pending')
@@ -325,13 +353,13 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
 
       <Card style={styles.section}>
         <Text variant="micro" color="secondary" style={styles.label}>TÍTULO</Text>
-        <View style={styles.inputWrap}>
+        <View style={[styles.inputWrap, { borderColor: C.border, backgroundColor: C.surface }]}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: C.textPrimary }]}
             value={title}
             onChangeText={setTitle}
             placeholder="Ej: Hollow Knight, Frieren..."
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={C.textTertiary}
             returnKeyType="done"
             onSubmitEditing={addItem}
           />
@@ -343,7 +371,7 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
           value={status}
           onChange={setStatus}
           getLabel={v => v === 'playing' ? 'En curso' : 'Pendiente'}
-          getColor={v => v === 'playing' ? Colors.mint : Colors.indigo}
+          getColor={v => v === 'playing' ? C.mint : C.indigo}
         />
 
         {habits.length > 0 && (
@@ -352,17 +380,25 @@ function StepLeisure({ onFinish, onBack, saving, habits }: {
             <HStack gap="sm" style={{ flexWrap: 'wrap' }}>
               <Pressable
                 onPress={() => setHabitIndex(null)}
-                style={[styles.chip, habitIndex === null && styles.chipSelected]}
+                style={[
+                  styles.chip,
+                  { borderColor: C.border, backgroundColor: C.surface },
+                  habitIndex === null && { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
+                ]}
               >
-                <Text variant="captionMedium" customColor={habitIndex === null ? Colors.textInverse : Colors.textSecondary}>Ninguno</Text>
+                <Text variant="captionMedium" customColor={habitIndex === null ? C.textInverse : C.textSecondary}>Ninguno</Text>
               </Pressable>
               {habits.map((h, i) => (
                 <Pressable
                   key={i}
                   onPress={() => setHabitIndex(i)}
-                  style={[styles.chip, habitIndex === i && { backgroundColor: h.color, borderColor: h.color }]}
+                  style={[
+                    styles.chip,
+                    { borderColor: C.border, backgroundColor: C.surface },
+                    habitIndex === i && { backgroundColor: h.color, borderColor: h.color },
+                  ]}
                 >
-                  <Text variant="captionMedium" customColor={habitIndex === i ? '#fff' : Colors.textSecondary}>{h.title}</Text>
+                  <Text variant="captionMedium" customColor={habitIndex === i ? '#fff' : C.textSecondary}>{h.title}</Text>
                 </Pressable>
               ))}
             </HStack>
@@ -400,6 +436,7 @@ type HabitDraftOut   = { title: string; color: string; duration: number; target:
 type LeisureDraftOut = { title: string; status: 'playing' | 'pending'; habitIndex: number | null }
 
 export default function OnboardingScreen() {
+  const C = useColors()
   const router  = useRouter()
   const insets  = useSafeAreaInsets()
   const [step,         setStep]         = useState(1)
@@ -459,7 +496,7 @@ export default function OnboardingScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.bg }]} edges={['top', 'bottom']}>
         <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + Spacing.lg }]}>
           <Text variant="displayLarge" color="primary" style={{ marginBottom: Spacing.lg }}>DailyOS</Text>
           <ProgressBar step={step} total={3} />
@@ -474,7 +511,7 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: Colors.bg },
+  safe:   { flex: 1 },
   header: {
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.md,
@@ -501,38 +538,25 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.full,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
     marginBottom: Spacing.xs,
-  },
-  chipSelected: {
-    backgroundColor: Colors.textPrimary,
-    borderColor: Colors.textPrimary,
   },
 
   inputWrap: {
     borderRadius: Radius.md,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
     ...Shadow.brutalSm,
   },
   input: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     fontSize: 16,
-    color: Colors.textPrimary,
     outline: 'none',
   } as any,
 
   colorDot: {
     width: 32, height: 32, borderRadius: 8,
-    borderWidth: 1.5, borderColor: Colors.border,
+    borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center',
-  },
-  colorDotSelected: {
-    borderWidth: 2.5, borderColor: Colors.border,
-    ...Shadow.brutalSm,
   },
 
   draftCard: {
@@ -540,8 +564,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.md,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
     marginBottom: Spacing.sm,
     alignItems: 'center',
   },
