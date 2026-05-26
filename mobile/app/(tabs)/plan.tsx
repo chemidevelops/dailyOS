@@ -117,10 +117,10 @@ function EmptyPlan() {
   )
 }
 
-function isoDate(offset: number): string {
+function isoDate(offset: number = 0): string {
   const d = new Date()
   d.setDate(d.getDate() + offset)
-  return d.toISOString().split('T')[0]
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function dayLabel(offset: number): string {
@@ -142,7 +142,7 @@ export default function PlanScreen() {
     setLoading(true)
     setError(null)
     try {
-      const data = await api.generate.plan(dayOffset === 0 ? undefined : isoDate(dayOffset))
+      const data = await api.generate.plan(isoDate(dayOffset))
       setPlan(data)
     } catch {
       setError('No se pudo generar el plan.')

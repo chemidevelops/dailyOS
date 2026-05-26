@@ -13,7 +13,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const CHECKIN_KEY = '@dailyos_checkin'
 
-const TODAY_ISO = new Date().toISOString().split('T')[0]
+function localISODate(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const TODAY_ISO = localISODate()
 
 // ─── Energy check-in ──────────────────────────────────────────────────────────
 
@@ -260,7 +264,7 @@ export default function TodayScreen() {
   const load = useCallback(async (e?: Energy | null, a?: Availability | null) => {
     try {
       const fillPct = a ? AVAILABILITY_PCT[a] : undefined
-      const data = await api.generate.plan(undefined, e ?? undefined, fillPct)
+      const data = await api.generate.plan(TODAY_ISO, e ?? undefined, fillPct)
       setPlan(data)
     } catch {
       // silent
@@ -303,8 +307,16 @@ export default function TodayScreen() {
     : 0
   const isWorkingNow = !!(plan?.work_end && nowMin >= workStartMin && nowMin < workEndMin)
 
-  const primaryItem = isWorkingNow ? null : (visibleItems[0] ?? null)
-  const restItems   = isWorkingNow ? visibleItems : visibleItems.slice(1)
+  const firstItemStartMin = (() => {
+    const t = visibleItems[0]?.start_time
+    if (!t) return 0
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + m
+  })()
+  const freeTimeStarted = visibleItems.length === 0 || nowMin >= firstItemStartMin
+
+  const primaryItem = isWorkingNow || !freeTimeStarted ? null : (visibleItems[0] ?? null)
+  const restItems   = isWorkingNow || !freeTimeStarted ? visibleItems : visibleItems.slice(1)
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: C.bg }]} edges={['top']}>
@@ -402,6 +414,22 @@ export default function TodayScreen() {
               <View style={styles.section}>
                 <Text variant="micro" color="secondary" style={styles.sectionLabel}>AHORA</Text>
                 <PrimaryCard item={primaryItem} onDone={() => markDone(primaryItem)} onSkip={() => markSkipped(primaryItem)} />
+              </View>
+            )}
+
+            {!isWorkingNow && !freeTimeStarted && plan?.work_start && (
+              <View style={styles.section}>
+                <Card variant="elevated">
+                  <HStack gap="md" style={{ alignItems: 'center' }}>
+                    <View style={{ width: 4, height: 44, borderRadius: 2, backgroundColor: C.border }} />
+                    <VStack gap="xs" style={{ flex: 1 }}>
+                      <Text variant="displayMedium" color="primary">Hoy</Text>
+                      <Text variant="body" color="secondary">
+                        Trabajo a las {plan.work_start} · Libre a las {plan.work_end}
+                      </Text>
+                    </VStack>
+                  </HStack>
+                </Card>
               </View>
             )}
 
